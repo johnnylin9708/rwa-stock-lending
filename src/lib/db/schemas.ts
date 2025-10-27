@@ -49,6 +49,24 @@ export interface UserSchema {
     lastSync?: Date; // 最后同步时间
   };
   
+  // ERC-3643 相关 (OnchainID & T-REX Token)
+  erc3643?: {
+    identityAddress?: string;           // OnchainID Identity 合约地址
+    identityCreatedAt?: Date;          // Identity 创建时间
+    claims: Array<{
+      claimId: string;
+      topic: string;                    // 例如: "KYC_VERIFIED"
+      issuer: string;                   // ClaimIssuer 地址
+      signature: string;
+      data: string;
+      issuedAt: Date;
+      isValid: boolean;
+    }>;
+    isRegistered: boolean;              // 是否已注册到 IdentityRegistry
+    registeredAt?: Date;
+    country: number;                    // ISO 3166-1 数字代码
+  };
+  
   bankAccounts?: BankAccountSchema[];
   createdAt: Date;
   updatedAt: Date;

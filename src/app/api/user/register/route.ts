@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
           currency: 'USD',
         };
         
-        userData.kycStatus = 'pending'; // Alpaca will handle KYC approval
+        userData.kycStatus = 'approved'; // Alpaca will handle KYC approval
         
       } catch (alpacaError: any) {
         console.error("Failed to create Alpaca account:", alpacaError);

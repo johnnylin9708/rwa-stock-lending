@@ -17,6 +17,22 @@ interface UserInfo {
     kycStatus: 'pending' | 'approved' | 'rejected' | 'not_started';
     hasAlpacaAccount: boolean;
     alpacaAccountStatus?: string;
+    erc3643?: {
+        identityAddress?: string;
+        identityCreatedAt?: Date;
+        claims: Array<{
+            claimId: string;
+            topic: string;
+            issuer: string;
+            signature: string;
+            data: string;
+            issuedAt: Date;
+            isValid: boolean;
+        }>;
+        isRegistered: boolean;
+        registeredAt?: Date;
+        country: number;
+    };
 }
 
 // Define the shape of the context state
@@ -66,27 +82,94 @@ export const Web3Provider = ({ children }: Web3ProviderProps) => {
             if (response.ok) {
                 const data = await response.json();
                 setUser(data.user);
+                
+                // Automatically create and verify Identity for legacy accounts (if they don't have one)
+                if (data.user && !data.user.erc3643?.identityAddress) {
+                    console.log('User does not have Identity, creating and verifying automatically...');
+                    try {
+                        const identityResponse = await fetch('/api/erc3643/identity/create', {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${token}`,
+                                'Content-Type': 'application/json',
+                            },
+                        });
+                        
+                        if (identityResponse.ok) {
+                            const identityData = await identityResponse.json();
+                            if (identityData.isRegistered) {
+                                console.log('Identity created and verified automatically:', identityData.identityAddress);
+                                console.log('KYC Status:', identityData.kycStatus);
+                            } else {
+                                console.log('Identity created:', identityData.identityAddress);
+                            }
+                            
+                            // Refresh user info to get the newly created and verified Identity
+                            const refreshResponse = await fetch('/api/user/register', {
+                                headers: {
+                                    'Authorization': `Bearer ${token}`,
+                                },
+                            });
+                            
+                            if (refreshResponse.ok) {
+                                const refreshData = await refreshResponse.json();
+                                setUser(refreshData.user);
+                            }
+                        } else {
+                            console.warn('Failed to create Identity automatically:', await identityResponse.text());
+                        }
+                    } catch (identityError) {
+                        console.error('Error creating Identity automatically:', identityError);
+                        // Does not affect normal login flow
+                    }
+                }
             }
         } catch (error) {
             console.error('Failed to fetch user info:', error);
         }
     }, []);
 
-    // Load session from localStorage on mount
+    // Load session from localStorage on mount and reconnect wallet
     useEffect(() => {
-        const storedToken = localStorage.getItem('sessionToken');
-        const storedAddress = localStorage.getItem('walletAddress');
+        const initializeSession = async () => {
+            const storedToken = localStorage.getItem('sessionToken');
+            const storedAddress = localStorage.getItem('walletAddress');
+            
+            if (storedToken && storedAddress) {
+                setSessionToken(storedToken);
+                setAddress(storedAddress);
+                setIsAuthenticated(true);
+                
+                // Reconnect wallet to get provider and signer
+                if (typeof window.ethereum !== 'undefined') {
+                    try {
+                        const web3Provider = new ethers.BrowserProvider(window.ethereum);
+                        setProvider(web3Provider);
+                        
+                        // Try to get signer without requesting account access (silent)
+                        const accounts = await web3Provider.send('eth_accounts', []); // Use eth_accounts instead of eth_requestAccounts
+                        
+                        if (accounts.length > 0 && accounts[0].toLowerCase() === storedAddress.toLowerCase()) {
+                            const signerInstance = await web3Provider.getSigner();
+                            setSigner(signerInstance);
+                            console.log('Wallet reconnected successfully');
+                        } else {
+                            console.log('Wallet not connected or different address, will need manual reconnection');
+                        }
+                    } catch (error) {
+                        console.log('Could not silently reconnect wallet:', error);
+                    }
+                }
+                
+                // Load user info
+                await fetchUserInfo(storedToken);
+            }
+            
+            // Mark as initialized after checking localStorage
+            setIsInitialized(true);
+        };
         
-        if (storedToken && storedAddress) {
-            setSessionToken(storedToken);
-            setAddress(storedAddress);
-            setIsAuthenticated(true);
-            // Load user info
-            fetchUserInfo(storedToken);
-        }
-        
-        // Mark as initialized after checking localStorage
-        setIsInitialized(true);
+        initializeSession();
     }, [fetchUserInfo]);
 
     // Function to refresh user info

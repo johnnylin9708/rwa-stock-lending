@@ -136,11 +136,11 @@ export default function SignUpPage() {
 
   const validateStep1 = () => {
     if (!formData.givenName || !formData.familyName || !formData.email) {
-      setError("请填写所有必填字段");
+      setError("Please fill in all required fields");
       return false;
     }
     if (!formData.phoneNumber || !formData.dateOfBirth || !formData.taxId) {
-      setError("请填写所有必填字段");
+      setError("Please fill in all required fields");
       return false;
     }
     return true;
@@ -149,10 +149,10 @@ export default function SignUpPage() {
   const validateStep2 = () => {
     if (!formData.address.streetAddress || !formData.address.city || 
         !formData.address.postalCode) {
-      setError("请填写完整地址信息");
+      setError("Please fill in complete address information");
       return false;
     }
-    // state 字段可选，不强制验证
+    // state field is optional, not enforced
     return true;
   };
 
@@ -204,7 +204,7 @@ export default function SignUpPage() {
     setSuccess("");
     
     if (!isAuthenticated || !address) {
-      setError("请先连接并认证钱包");
+      setError("Please connect and authenticate your wallet first");
       return;
     }
 
@@ -266,15 +266,58 @@ export default function SignUpPage() {
       const result = await response.json();
 
       if (response.ok) {
-        setSuccess(result.message || "注册成功！正在跳转...");
-        setTimeout(() => {
-          router.push("/");
-        }, 2000);
+        setSuccess("KYC submitted successfully! Creating and verifying on-chain identity...");
+        
+        // Step 2: Automatically create ERC-3643 Identity (with auto-verification)
+        try {
+          const identityResponse = await fetch("/api/erc3643/identity/create", {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${sessionToken}`,
+              "Content-Type": "application/json",
+            },
+          });
+          
+          const identityResult = await identityResponse.json();
+          
+          if (identityResponse.ok && identityResult.isRegistered) {
+            setSuccess(
+              `Registration successful!\n✓ KYC approved\n✓ On-chain identity created: ${identityResult.identityAddress?.slice(0, 10)}...\n✓ KYC Claim issued\n✓ Registered to IdentityRegistry\n\nYou can now use ERC-3643 tokens!`
+            );
+            setTimeout(() => {
+              router.push("/");
+            }, 3000);
+          } else if (identityResponse.ok) {
+            // Identity created but not fully registered
+            setSuccess(
+              `Registration successful!\n✓ KYC submitted\n✓ On-chain identity created: ${identityResult.identityAddress?.slice(0, 10)}...\n\nPlease refresh to complete verification.`
+            );
+            setTimeout(() => {
+              router.push("/");
+            }, 2000);
+          } else {
+            // KYC succeeded but Identity creation failed, still considered successful, can be created later
+            setSuccess(
+              result.message || "Registration successful! KYC submitted.\n" + 
+              "(On-chain identity will be created automatically on first login)"
+            );
+            setTimeout(() => {
+              router.push("/");
+            }, 2000);
+          }
+        } catch (identityError) {
+          console.error("Identity creation failed:", identityError);
+          // KYC succeeded but Identity creation failed, still considered successful
+          setSuccess(result.message || "Registration successful! KYC submitted.");
+          setTimeout(() => {
+            router.push("/");
+          }, 2000);
+        }
       } else {
-        setError(result.error || "注册失败，请重试");
+        setError(result.error || "Registration failed, please try again");
       }
     } catch (err: any) {
-      setError(err.message || "提交失败，请检查网络连接");
+      setError(err.message || "Submission failed, please check your network connection");
     } finally {
       setIsSubmitting(false);
     }
