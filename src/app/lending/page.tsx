@@ -10,7 +10,7 @@ import { useWeb3 } from "@/context/web3-provider";
 import { SUPPORTED_ASSETS } from "@/lib/constants";
 
 export default function ApplyPage() {
-  const { address, connectWallet } = useWeb3();
+  const { address, isAuthenticated, authenticateWallet } = useWeb3();
   const [selectedAsset, setSelectedAsset] = useState("");
   const [assetAmount, setAssetAmount] = useState("");
   const [loanAmount, setLoanAmount] = useState("");
@@ -129,19 +129,19 @@ export default function ApplyPage() {
     return colorMap[status] || 'bg-gray-50 text-gray-600';
   };
   
-  if (!address) {
+  if (!address || !isAuthenticated) {
     return (
       <div className="min-h-screen bg-white flex flex-col items-center justify-center">
         <div className="text-center">
           <h1 className="text-2xl font-semibold text-gray-900 mb-3">Apply for DeFi Collateral Lending</h1>
           <p className="text-sm text-gray-500 mb-8">
-            Connect your wallet to get started
+            Sign in to get started
           </p>
           <Button
-            onClick={connectWallet}
+            onClick={authenticateWallet}
             className="px-6 py-3 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors text-sm font-medium"
           >
-            Connect Wallet
+            Sign In
           </Button>
         </div>
       </div>

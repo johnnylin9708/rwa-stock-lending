@@ -1,22 +1,11 @@
 /**
  * API Route: Generate nonce for wallet authentication
- * Optional endpoint for enhanced security
+ * Stores nonce in MongoDB for secure authentication flow
  */
 import { NextRequest, NextResponse } from "next/server";
-import { generateNonce, isValidAddress } from "@/lib/auth-helpers";
-
-// In-memory storage for nonces (use Redis in production)
-const nonceStore = new Map<string, { nonce: string; timestamp: number }>();
-
-// Clean up expired nonces (older than 5 minutes)
-function cleanupExpiredNonces() {
-    const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
-    for (const [address, data] of nonceStore.entries()) {
-        if (data.timestamp < fiveMinutesAgo) {
-            nonceStore.delete(address);
-        }
-    }
-}
+import { generateNonce, generateNonceMessage, isValidAddress } from "@/lib/auth-helpers";
+import { getDatabase } from "@/lib/db/mongodb";
+import { UserSchema } from "@/lib/db/schemas";
 
 export async function POST(request: NextRequest) {
     try {
@@ -29,19 +18,48 @@ export async function POST(request: NextRequest) {
             );
         }
         
-        // Clean up old nonces
-        cleanupExpiredNonces();
+        const db = await getDatabase();
+        const usersCollection = db.collection<UserSchema>('users');
         
         // Generate new nonce
         const nonce = generateNonce();
-        nonceStore.set(address.toLowerCase(), {
-            nonce,
-            timestamp: Date.now()
+        const normalizedAddress = address.toLowerCase();
+        
+        // Check if user exists, if not create a basic record
+        const existingUser = await usersCollection.findOne({ 
+            walletAddress: normalizedAddress 
         });
+        
+        if (existingUser) {
+            // Update nonce for existing user
+            await usersCollection.updateOne(
+                { walletAddress: normalizedAddress },
+                { 
+                    $set: { 
+                        nonce,
+                        updatedAt: new Date()
+                    } 
+                }
+            );
+        } else {
+            // Create new user with nonce
+            await usersCollection.insertOne({
+                walletAddress: normalizedAddress,
+                email: '', // Will be filled during registration
+                nonce,
+                kycStatus: 'not_started',
+                createdAt: new Date(),
+                updatedAt: new Date()
+            } as UserSchema);
+        }
+        
+        // Generate the message to sign
+        const message = generateNonceMessage(address, nonce);
         
         return NextResponse.json({
             nonce,
-            message: `Sign this message to authenticate: ${nonce}`
+            message,
+            address: normalizedAddress
         });
         
     } catch (error: any) {
@@ -65,26 +83,27 @@ export async function GET(request: NextRequest) {
             );
         }
         
-        const data = nonceStore.get(address.toLowerCase());
+        const db = await getDatabase();
+        const usersCollection = db.collection<UserSchema>('users');
         
-        if (!data) {
+        const user = await usersCollection.findOne({ 
+            walletAddress: address.toLowerCase() 
+        });
+        
+        if (!user || !user.nonce) {
             return NextResponse.json(
-                { error: "No nonce found for this address" },
+                { error: "No nonce found for this address. Please request a new nonce." },
                 { status: 404 }
             );
         }
         
-        // Check if nonce is expired
-        const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
-        if (data.timestamp < fiveMinutesAgo) {
-            nonceStore.delete(address.toLowerCase());
-            return NextResponse.json(
-                { error: "Nonce expired" },
-                { status: 404 }
-            );
-        }
+        // Generate the message to sign with the stored nonce
+        const message = generateNonceMessage(address, user.nonce);
         
-        return NextResponse.json({ nonce: data.nonce });
+        return NextResponse.json({ 
+            nonce: user.nonce,
+            message
+        });
         
     } catch (error: any) {
         console.error("Error retrieving nonce:", error);

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectToDatabase } from "@/lib/db/mongodb";
+import { getDatabase } from "@/lib/db/mongodb";
 
 export async function GET(req: NextRequest) {
   try {
@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const db = await connectToDatabase();
+    const db = await getDatabase();
     const collection = db.collection("tokenizedPositions");
 
     const positions = await collection

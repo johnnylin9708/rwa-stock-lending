@@ -17,10 +17,22 @@ export async function GET(request: NextRequest) {
             );
         }
         
+        // Check if RPC URL is configured
+        const rpcUrl = process.env.ETHEREUM_RPC_URL || process.env.NEXT_PUBLIC_RPC_URL;
+        if (!rpcUrl || rpcUrl.includes('YOUR_KEY')) {
+            return NextResponse.json(
+                { 
+                    walletAddress,
+                    transactions: [],
+                    count: 0,
+                    message: "RPC URL not configured. Please set ETHEREUM_RPC_URL in environment variables."
+                },
+                { status: 200 }
+            );
+        }
+        
         // Connect to contract
-        const provider = new ethers.JsonRpcProvider(
-            process.env.NEXT_PUBLIC_RPC_URL || "https://sepolia.infura.io/v3/YOUR_KEY"
-        );
+        const provider = new ethers.JsonRpcProvider(rpcUrl);
         
         const lendingContract = new ethers.Contract(
             lendingContractAddress,

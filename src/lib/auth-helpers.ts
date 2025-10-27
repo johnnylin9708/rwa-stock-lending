@@ -1,9 +1,14 @@
 /**
- * Authentication Helpers for Web3 Wallet Authentication
- * Simple MVP approach using wallet address as user identifier
+ * Authentication Helpers for Web3 Wallet Authentication + Alpaca Broker Integration
+ * Comprehensive authentication system with MongoDB session management
  */
 
 import { ethers } from "ethers";
+import crypto from "crypto";
+import jwt from "jsonwebtoken";
+
+const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production";
+const SESSION_EXPIRY = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 /**
  * Verify wallet ownership by signing a message
@@ -24,44 +29,92 @@ export async function verifyWalletOwnership(
 
 /**
  * Generate a nonce message for signing
+ * NOTE: 不包含时间戳，因为需要前后端生成相同的消息
  */
 export function generateNonceMessage(address: string, nonce: string): string {
-    return `Welcome to RWA Lending Platform!\n\nPlease sign this message to verify your wallet ownership.\n\nWallet: ${address}\nNonce: ${nonce}\n\nThis signature will not trigger any blockchain transaction or cost any gas fees.`;
+    return `Welcome to RWA Stock Lending Platform!
+
+Please sign this message to authenticate your wallet.
+
+Wallet: ${address}
+Nonce: ${nonce}
+
+This signature will not trigger any blockchain transaction or cost any gas fees.`;
 }
 
 /**
- * Generate a random nonce
+ * Generate a cryptographically secure random nonce
  */
 export function generateNonce(): string {
-    return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    return crypto.randomBytes(32).toString('hex');
 }
 
 /**
- * Create a session token (for optional server-side session management)
+ * Create a JWT session token with user information
  */
-export function createSessionToken(address: string): string {
-    // In production, use a more secure method like JWT
-    return Buffer.from(`${address}:${Date.now()}`).toString('base64');
+export function createSessionToken(walletAddress: string, userId?: string): string {
+    const payload = {
+        walletAddress: walletAddress.toLowerCase(),
+        userId,
+        iat: Date.now(),
+        exp: Date.now() + SESSION_EXPIRY,
+    };
+    
+    return jwt.sign(payload, JWT_SECRET);
 }
 
 /**
- * Validate session token
+ * Validate and decode JWT session token
  */
-export function validateSessionToken(token: string): { address: string; timestamp: number } | null {
+export function validateSessionToken(token: string): { 
+    walletAddress: string; 
+    userId?: string;
+    iat: number;
+    exp: number;
+} | null {
     try {
-        const decoded = Buffer.from(token, 'base64').toString();
-        const [address, timestamp] = decoded.split(':');
+        const decoded = jwt.verify(token, JWT_SECRET) as any;
         
-        // Check if token is expired (24 hours)
-        const tokenAge = Date.now() - parseInt(timestamp);
-        if (tokenAge > 24 * 60 * 60 * 1000) {
+        // Check if token is expired
+        if (decoded.exp < Date.now()) {
             return null;
         }
         
-        return { address, timestamp: parseInt(timestamp) };
+        return {
+            walletAddress: decoded.walletAddress,
+            userId: decoded.userId,
+            iat: decoded.iat,
+            exp: decoded.exp,
+        };
     } catch (error) {
+        console.error("Invalid session token:", error);
         return null;
     }
+}
+
+/**
+ * Extract and validate session token from request headers
+ */
+export function getSessionFromHeaders(headers: Headers): { 
+    walletAddress: string; 
+    userId?: string;
+} | null {
+    const authHeader = headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return null;
+    }
+    
+    const token = authHeader.substring(7);
+    const session = validateSessionToken(token);
+    
+    if (!session) {
+        return null;
+    }
+    
+    return {
+        walletAddress: session.walletAddress,
+        userId: session.userId,
+    };
 }
 
 /**
@@ -81,5 +134,27 @@ export function isValidAddress(address: string): boolean {
     } catch {
         return false;
     }
+}
+
+/**
+ * Hash sensitive data for storage
+ */
+export function hashData(data: string): string {
+    return crypto.createHash('sha256').update(data).digest('hex');
+}
+
+/**
+ * Verify hashed data
+ */
+export function verifyHashedData(data: string, hash: string): boolean {
+    return hashData(data) === hash;
+}
+
+/**
+ * Check if session is expired
+ */
+export function isSessionExpired(lastLogin: Date): boolean {
+    const sessionAge = Date.now() - lastLogin.getTime();
+    return sessionAge > SESSION_EXPIRY;
 }
 

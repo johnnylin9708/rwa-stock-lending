@@ -2,20 +2,53 @@
  * MongoDB Schemas for POC
  */
 
-// 用户信息
+// 用户信息 - 整合 Alpaca Broker API
 export interface UserSchema {
   _id?: string;
   walletAddress: string;
   email: string;
-  kycStatus: 'pending' | 'approved' | 'rejected';
+  
+  // 认证相关
+  nonce?: string; // 用于 Web3 签名验证
+  lastLogin?: Date;
+  sessionToken?: string;
+  
+  // KYC 信息
+  kycStatus: 'pending' | 'approved' | 'rejected' | 'not_started';
   kycData?: {
     fullName: string;
-    idNumber: string;
+    givenName: string;
+    familyName: string;
+    dateOfBirth: string; // YYYY-MM-DD
+    idNumber?: string;
+    taxId?: string;
     country: string;
-    dateOfBirth: string;
+    phoneNumber: string;
+    address: {
+      streetAddress: string[];
+      city: string;
+      state: string;
+      postalCode: string;
+      country: string;
+    };
     submittedAt: Date;
     approvedAt?: Date;
+    rejectedAt?: Date;
+    rejectionReason?: string;
   };
+  
+  // Alpaca Broker 账户信息
+  alpacaAccount?: {
+    accountId: string; // Alpaca 分配的账户 ID
+    accountNumber?: string; // 账户编号
+    status: 'SUBMITTED' | 'ACTION_REQUIRED' | 'EDITED' | 'APPROVAL_PENDING' | 'APPROVED' | 'REJECTED' | 'ACTIVE' | 'ACCOUNT_CLOSED';
+    accountType?: 'trading' | 'margin';
+    createdAt: Date;
+    approvedAt?: Date;
+    currency?: 'USD';
+    lastSync?: Date; // 最后同步时间
+  };
+  
   bankAccounts?: BankAccountSchema[];
   createdAt: Date;
   updatedAt: Date;

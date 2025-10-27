@@ -17,7 +17,7 @@ interface Transaction {
 }
 
 export default function HistoryPage() {
-    const { address, connectWallet } = useWeb3();
+    const { address, isAuthenticated, authenticateWallet } = useWeb3();
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     
@@ -42,15 +42,15 @@ export default function HistoryPage() {
         fetchHistory();
     }, [address]);
     
-    if (!address) {
+    if (!address || !isAuthenticated) {
         return (
             <div className="p-8 flex flex-col items-center justify-center min-h-[60vh]">
                 <h1 className="text-3xl font-bold mb-4">Transaction History</h1>
                 <p className="text-muted-foreground mb-6">
-                    Connect your wallet to view your transaction history
+                    Sign in to view your transaction history
                 </p>
-                <Button onClick={connectWallet} size="lg">
-                    Connect Wallet
+                <Button onClick={authenticateWallet} size="lg">
+                    Sign In
                 </Button>
             </div>
         );

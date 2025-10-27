@@ -27,10 +27,13 @@ const CHAINLINK_PRICE_FEED_ABI = [
 ];
 
 export async function GET() {
-    const rpcUrl = process.env.ETHEREUM_RPC_URL;
+    const rpcUrl = process.env.ETHEREUM_RPC_URL || process.env.NEXT_PUBLIC_RPC_URL;
 
-    if (!rpcUrl) {
-        return NextResponse.json({ message: "ETHEREUM_RPC_URL is not set in environment variables" }, { status: 500 });
+    if (!rpcUrl || rpcUrl.includes('YOUR_KEY')) {
+        return NextResponse.json({ 
+            price: 0,
+            message: "ETHEREUM_RPC_URL is not configured in environment variables" 
+        }, { status: 200 });
     }
     
     try {

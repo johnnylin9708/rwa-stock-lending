@@ -7,11 +7,15 @@ export interface User {
     id: string;
     walletAddress: string;
     email?: string;
+    nonce?: string;
+    lastLogin?: Date;
+    sessionToken?: string;
     createdAt: Date;
     updatedAt: Date;
-    // Alpaca account info
+    // Alpaca Broker account info
     alpacaAccountId?: string;
-    alpacaAccountStatus?: string;
+    alpacaAccountStatus?: 'SUBMITTED' | 'ACTION_REQUIRED' | 'EDITED' | 'APPROVAL_PENDING' | 'APPROVED' | 'REJECTED' | 'ACTIVE' | 'ACCOUNT_CLOSED';
+    kycStatus?: 'pending' | 'approved' | 'rejected' | 'not_started';
 }
 
 export interface TokenizedAsset {
