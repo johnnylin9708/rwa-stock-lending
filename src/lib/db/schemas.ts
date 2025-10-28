@@ -9,9 +9,7 @@ export interface UserSchema {
   email: string;
   
   // Authentication related
-  nonce?: string; // Used for Web3 signature verification
   lastLogin?: Date;
-  sessionToken?: string;
   
   // KYC information
   kycStatus: 'pending' | 'approved' | 'rejected' | 'not_started';
@@ -116,98 +114,3 @@ export interface LoanApplicationSchema {
   // Notes
   notes?: string;
 }
-
-// Asset reserve record
-export interface AssetReserveSchema {
-  _id?: string;
-  loanApplicationId: string;
-  userId: string;
-  
-  // Bank information
-  bankName: string;
-  accountNumber: string;
-  
-  // Asset information
-  assetType: 'STOCK' | 'BOND';
-  assetSymbol: string;
-  quantity: number;
-  reservedValue: number;
-  
-  // Status
-  status: 'pending' | 'confirmed' | 'released' | 'failed';
-  
-  // Bank response
-  bankReferenceId?: string;
-  bankConfirmationDate?: Date;
-  
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-// Token minting record
-export interface TokenMintingSchema {
-  _id?: string;
-  loanApplicationId: string;
-  userId: string;
-  walletAddress: string;
-  
-  // Token information
-  tokenSymbol: string;           // TAAPL, TGOOGL等
-  tokenContractAddress: string;
-  amount: number;
-  
-  // Transaction information
-  txHash: string;
-  blockNumber?: number;
-  status: 'pending' | 'confirmed' | 'failed';
-  
-  // Timestamp
-  initiatedAt: Date;
-  confirmedAt?: Date;
-}
-
-// Tokenized position record
-export interface TokenizedPositionSchema {
-  _id?: string;
-  userId: string;
-  walletAddress: string;
-  
-  // Original stock information
-  originalSymbol: string;      // AAPL, GOOGL, etc
-  alpacaPositionQty: number;   // Original position quantity on Alpaca
-  
-  // Tokenized information
-  tokenizedQty: number;        // Tokenized quantity
-  frozenQty: number;           // Frozen quantity
-  availableQty: number;        // Available quantity (alpacaPositionQty - frozenQty)
-  
-  // Token contract information
-  tokenSymbol: string;         // TAAPL, TGOOGL
-  tokenContractAddress: string;
-  
-  // Tokenization record
-  tokenizations: {
-    amount: number;
-    txHash: string;
-    blockNumber?: number;
-    timestamp: Date;
-    status: 'pending' | 'confirmed' | 'failed';
-  }[];
-  
-  // Status
-  status: 'active' | 'closed';
-  
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-// System log
-export interface ActivityLogSchema {
-  _id?: string;
-  userId: string;
-  action: string;
-  description: string;
-  metadata?: any;
-  timestamp: Date;
-}
-

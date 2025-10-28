@@ -44,15 +44,6 @@ export async function POST(request: NextRequest) {
         }
       );
       
-      // 记录日志
-      await db.collection('activity_logs').insertOne({
-        userId: application.userId,
-        action: 'BANK_RESERVE_CONFIRMED',
-        description: `银行确认资产圈存: ${application.assetSymbol} x${application.assetAmount}`,
-        metadata: { applicationId },
-        timestamp: new Date()
-      });
-      
       return NextResponse.json({
         success: true,
         message: "银行已确认资产圈存，准备铸造代币..."
@@ -116,15 +107,6 @@ export async function POST(request: NextRequest) {
           }
         );
       }, 2000);
-      
-      // 记录日志
-      await db.collection('activity_logs').insertOne({
-        userId: application.userId,
-        action: 'TOKENS_MINTED',
-        description: `代币铸造完成: ${tokenSymbol} x${application.assetAmount}`,
-        metadata: { applicationId, txHash: mockTxHash },
-        timestamp: new Date()
-      });
       
       return NextResponse.json({
         success: true,

@@ -1,36 +1,23 @@
-/**
- * API: Alpaca Broker Portfolio Management
- * Get user's portfolio and positions
- */
-import { NextRequest, NextResponse } from "next/server";
+'use server';
+
 import { getDatabase } from "@/lib/db/mongodb";
 import { UserSchema } from "@/lib/db/schemas";
-import { getSessionFromHeaders } from "@/lib/auth-helpers";
 import { getAccountInfo, getPositions } from "@/lib/alpaca-client";
 
-export async function GET(request: NextRequest) {
-    try {
-        const session = getSessionFromHeaders(request.headers);
+export const getAlpacaAccountDetails = async (walletAddress: string) => {
         
-        if (!session) {
-            return NextResponse.json(
-                { error: "未授权：需要登录" },
-                { status: 401 }
-            );
+        if (!walletAddress) {
+            return null;
         }
         
         const db = await getDatabase();
         const usersCollection = db.collection<UserSchema>('users');
-        
         const user = await usersCollection.findOne({ 
-            walletAddress: session.walletAddress 
+            walletAddress: walletAddress.toLowerCase()
         });
-        
+
         if (!user || !user.alpacaAccount) {
-            return NextResponse.json(
-                { error: "用户没有 Alpaca 账户" },
-                { status: 404 }
-            );
+            return null;
         }
         
         // Fetch account details and positions in parallel from Alpaca Broker API
@@ -41,7 +28,7 @@ export async function GET(request: NextRequest) {
         
         // Update local database with latest account status
         await usersCollection.updateOne(
-            { walletAddress: session.walletAddress },
+            { walletAddress },
             { 
                 $set: { 
                     'alpacaAccount.status': account.status,
@@ -51,8 +38,7 @@ export async function GET(request: NextRequest) {
             }
         );
 
-        return NextResponse.json({
-            success: true,
+        return {
             account: {
                 accountId: account.id,
                 accountNumber: account.account_number,
@@ -81,13 +67,5 @@ export async function GET(request: NextRequest) {
                 asset_id: position.asset_id,
                 exchange: position.exchange,
             }))
-        });
-
-    } catch (error: any) {
-        console.error("获取投资组合失败:", error);
-        return NextResponse.json(
-            { error: error.response?.data?.message || error.message || "获取投资组合失败" },
-            { status: 500 }
-        );
-    }
+        };
 }

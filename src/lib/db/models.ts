@@ -7,9 +7,7 @@ export interface User {
     id: string;
     walletAddress: string;
     email?: string;
-    nonce?: string;
     lastLogin?: Date;
-    sessionToken?: string;
     createdAt: Date;
     updatedAt: Date;
     // Alpaca Broker account info
@@ -94,17 +92,6 @@ export interface RiskMetrics {
     healthFactor: number;
     utilizationRate: number;
     liquidationRisk: "LOW" | "MEDIUM" | "HIGH";
-    timestamp: Date;
-}
-
-// Interest rate snapshot for historical tracking
-export interface InterestRateSnapshot {
-    assetSymbol: string;
-    borrowAPY: number;
-    supplyAPY: number;
-    utilizationRate: number;
-    totalBorrows: number;
-    totalSupply: number;
     timestamp: Date;
 }
 

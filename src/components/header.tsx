@@ -9,7 +9,7 @@ export default function Header() {
     isAuthenticated, 
     user, 
     isLoading,
-    authenticateWallet, 
+    connectWallet, 
     disconnectWallet 
   } = useWeb3();
 
@@ -52,7 +52,7 @@ export default function Header() {
             {!isAuthenticated ? (
               <button 
                 type="button"
-                onClick={authenticateWallet}
+                onClick={connectWallet}
                 disabled={isLoading}
                 className="text-sm px-4 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:opacity-50"
               >
@@ -88,7 +88,7 @@ export default function Header() {
             </Link>
             <button 
               type="button"
-              onClick={authenticateWallet}
+              onClick={connectWallet}
               disabled={isLoading}
               className="text-sm px-4 py-2 bg-gray-900 text-white rounded hover:bg-gray-800 transition-colors disabled:opacity-50"
             >

@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { registerUser } from "../actions/user";
+import { createIdentity } from "../actions/erc3643";
 
 interface KYCFormData {
   // Personal Information
@@ -56,7 +58,7 @@ interface KYCFormData {
 
 export default function SignUpPage() {
   const router = useRouter();
-  const { address, isAuthenticated, sessionToken,user, authenticateWallet, isLoading } = useWeb3();
+  const { address, isAuthenticated, user, connectWallet, isLoading } = useWeb3();
   
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState<KYCFormData>({
@@ -105,9 +107,8 @@ export default function SignUpPage() {
   useEffect(() => {
     if (!autoConnectTriggered && !isAuthenticated && !isLoading) {
       setAutoConnectTriggered(true);
-      authenticateWallet();
     }
-  }, [autoConnectTriggered, isAuthenticated, isLoading, authenticateWallet]);
+  }, [autoConnectTriggered, isAuthenticated, isLoading]);
 
   // 检查用户是否已经有 Alpaca 账户
   useEffect(() => {
@@ -216,81 +217,60 @@ export default function SignUpPage() {
     setIsSubmitting(true);
 
     try {
-      // 调用注册 API，创建用户和 Alpaca 账户
-      const response = await fetch("/api/user/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const kycData = {
+        givenName: formData.givenName,
+        familyName: formData.familyName,
+        dateOfBirth: formData.dateOfBirth,
+        taxId: formData.taxId,
+        phoneNumber: formData.phoneNumber,
+        address: {
+          streetAddress: [formData.address.streetAddress, formData.address.unit].filter(Boolean),
+          city: formData.address.city,
+          state: formData.address.state,
+          postalCode: formData.address.postalCode,
+          country: formData.address.country,
         },
-        body: JSON.stringify({
-          walletAddress: address,
-          email: formData.email,
-          createAlpacaAccount: true,
-          kycData: {
-            givenName: formData.givenName,
-            familyName: formData.familyName,
-            dateOfBirth: formData.dateOfBirth,
-            taxId: formData.taxId,
-            phoneNumber: formData.phoneNumber,
-            address: {
-              streetAddress: [formData.address.streetAddress, formData.address.unit].filter(Boolean),
-              city: formData.address.city,
-              state: formData.address.state,
-              postalCode: formData.address.postalCode,
-              country: formData.address.country,
-            },
-            citizenship: formData.citizenship,
-            fundingSource: formData.fundingSource,
-            employmentStatus: formData.employmentStatus,
-            annualIncome: formData.annualIncome,
-            netWorth: formData.netWorth,
-            liquidNetWorth: formData.liquidNetWorth,
-            investmentExperience: formData.investmentExperience,
-            investmentObjective: formData.investmentObjective,
-            riskTolerance: formData.riskTolerance,
-            trustedContact: {
-              givenName: formData.trustedContact.givenName,
-              familyName: formData.trustedContact.familyName,
-              emailAddress: formData.trustedContact.emailAddress,
-              phoneNumber: formData.trustedContact.phoneNumber,
-              streetAddress: formData.trustedContact.streetAddress,
-              city: formData.trustedContact.city,
-              state: formData.trustedContact.state,
-              postalCode: formData.trustedContact.postalCode,
-              country: formData.trustedContact.country,
-            },
-          },
-        }),
-      });
+        citizenship: formData.citizenship,
+        fundingSource: formData.fundingSource,
+        employmentStatus: formData.employmentStatus,
+        annualIncome: formData.annualIncome,
+        netWorth: formData.netWorth,
+        liquidNetWorth: formData.liquidNetWorth,
+        investmentExperience: formData.investmentExperience,
+        investmentObjective: formData.investmentObjective,
+        riskTolerance: formData.riskTolerance,
+        trustedContact: {
+          givenName: formData.trustedContact.givenName,
+          familyName: formData.trustedContact.familyName,
+          emailAddress: formData.trustedContact.emailAddress,
+          phoneNumber: formData.trustedContact.phoneNumber,
+          streetAddress: formData.trustedContact.streetAddress,
+          city: formData.trustedContact.city,
+          state: formData.trustedContact.state,
+          postalCode: formData.trustedContact.postalCode,
+          country: formData.trustedContact.country,
+        },
+      };
+      const registerResponse = await registerUser(address, formData.email, kycData);
 
-      const result = await response.json();
-
-      if (response.ok || response.status === 409) {
+      if (registerResponse.success) {
         setSuccess("KYC submitted successfully! Creating and verifying on-chain identity...");
         
         // Step 2: Automatically create ERC-3643 Identity (with auto-verification)
         try {
-          const identityResponse = await fetch("/api/erc3643/identity/create", {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${sessionToken}`,
-              "Content-Type": "application/json",
-            },
-          });
+          const identityResponse = await createIdentity(address);
           
-          const identityResult = await identityResponse.json();
-          
-          if (identityResponse.ok && identityResult.isRegistered) {
+          if (identityResponse.success && identityResponse.isRegistered) {
             setSuccess(
-              `Registration successful!\n✓ KYC approved\n✓ On-chain identity created: ${identityResult.identityAddress?.slice(0, 10)}...\n✓ KYC Claim issued\n✓ Registered to IdentityRegistry\n\nYou can now use ERC-3643 tokens!`
+              `Registration successful!\n✓ KYC approved\n✓ On-chain identity created: ${identityResponse.identityAddress?.slice(0, 10)}...\n✓ KYC Claim issued\n✓ Registered to IdentityRegistry\n\nYou can now use ERC-3643 tokens!`
             );
             setTimeout(() => {
               router.push("/");
             }, 1000);
-          } else if (identityResponse.ok) {
+          } else if (identityResponse.success) {
             // Identity created but not fully registered
             setSuccess(
-              `Registration successful!\n✓ KYC submitted\n✓ On-chain identity created: ${identityResult.identityAddress?.slice(0, 10)}...\n\nPlease refresh to complete verification.`
+              `Registration successful!\n✓ KYC submitted\n✓ On-chain identity created: ${identityResponse.identityAddress?.slice(0, 10)}...\n\nPlease refresh to complete verification.`
             );
             setTimeout(() => {
               router.push("/");
@@ -298,7 +278,7 @@ export default function SignUpPage() {
           } else {
             // KYC succeeded but Identity creation failed, still considered successful, can be created later
             setSuccess(
-              result.message || "Registration successful! KYC submitted.\n" + 
+              identityResponse.message || "Registration successful! KYC submitted.\n" + 
               "(On-chain identity will be created automatically on first login)"
             );
             setTimeout(() => {
@@ -308,13 +288,9 @@ export default function SignUpPage() {
         } catch (identityError) {
           console.error("Identity creation failed:", identityError);
           // KYC succeeded but Identity creation failed, still considered successful
-          setSuccess(result.message || "Registration successful! KYC submitted.");
-          setTimeout(() => {
-            router.push("/");
-          }, 1000);
         }
       } else {
-        setError(result.error || "Registration failed, please try again");
+        setError("Registration failed, please try again");
       }
     } catch (err: any) {
       setError(err.message || "Submission failed, please check your network connection");
@@ -337,7 +313,7 @@ export default function SignUpPage() {
           <CardContent className="space-y-4">
             {!address ? (
               <Button 
-                onClick={authenticateWallet} 
+                onClick={connectWallet} 
                 disabled={isLoading}
                 className="w-full"
               >
@@ -351,7 +327,7 @@ export default function SignUpPage() {
                   </p>
                 </div>
                 <Button 
-                  onClick={authenticateWallet} 
+                  onClick={connectWallet} 
                   disabled={isLoading}
                   className="w-full"
                 >
@@ -833,7 +809,6 @@ export default function SignUpPage() {
                   type="button"
                   onClick={handlePrevious}
                   disabled={step === 1 || isSubmitting}
-                  variant="outline"
                 >
                   Previous
                 </Button>

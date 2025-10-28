@@ -105,20 +105,6 @@ export async function POST(request: NextRequest) {
     const applicationsCollection = db.collection('loan_applications');
     const result = await applicationsCollection.insertOne(loanApplication as any);
     
-    // 记录日志
-    await db.collection('activity_logs').insertOne({
-      userId: user._id.toString(),
-      action: 'LOAN_APPLIED',
-      description: `申请借贷: ${assetSymbol} x${assetAmount}, 借款: $${requestedLoanAmount}`,
-      metadata: { 
-        applicationId: result.insertedId.toString(),
-        assetPrice,
-        collateralFactor,
-        estimatedAPY 
-      },
-      timestamp: new Date()
-    });
-    
     return NextResponse.json({
       success: true,
       applicationId: result.insertedId,

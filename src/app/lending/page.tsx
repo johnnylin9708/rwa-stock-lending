@@ -9,9 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useWeb3 } from "@/context/web3-provider";
 import { SUPPORTED_ASSETS } from "@/lib/constants";
 import { CompoundService, createCompoundService } from "@/lib/compound-client";
+import { getTokenizedStockBalance } from "../actions/erc3643";
 
 export default function ApplyPage() {
-  const { address, isAuthenticated, authenticateWallet, sessionToken, signer } = useWeb3();
+  const { address, isAuthenticated, signer, connectWallet } = useWeb3();
   const [selectedAsset, setSelectedAsset] = useState("");
   const [assetAmount, setAssetAmount] = useState("");
   const [loanAmount, setLoanAmount] = useState("");
@@ -82,26 +83,15 @@ export default function ApplyPage() {
   
   // Fetch token balances for all supported assets
   useEffect(() => {
-    if (sessionToken && address) {
+    if (address) {
       const fetchBalances = async () => {
         const balances: Record<string, string> = {};
         
         for (const asset of SUPPORTED_ASSETS) {
           try {
-            const response = await fetch('/api/erc3643/token/mint', {
-              method: 'GET',
-              headers: {
-                'Authorization': `Bearer ${sessionToken}`,
-                'Content-Type': 'application/json',
-              },
-            });
+            const tStockBalance = await getTokenizedStockBalance(address)
             
-            if (response.ok) {
-              const data = await response.json();
-              balances[asset.tokenAddress] = data.balance || "0";
-            } else {
-              balances[asset.tokenAddress] = "0";
-            }
+            balances[asset.tokenAddress] = tStockBalance.balance || "0";
           } catch (error) {
             console.error(`Failed to fetch balance for ${asset.symbol}:`, error);
             balances[asset.tokenAddress] = "0";
@@ -113,7 +103,7 @@ export default function ApplyPage() {
       
       fetchBalances();
     }
-  }, [sessionToken, address]);
+  }, [address]);
   
   // Fetch asset price
   useEffect(() => {
@@ -382,7 +372,7 @@ export default function ApplyPage() {
             Sign in to get started
           </p>
           <Button
-            onClick={authenticateWallet}
+            onClick={connectWallet}
             className="px-6 py-3 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors text-sm font-medium"
           >
             Sign In

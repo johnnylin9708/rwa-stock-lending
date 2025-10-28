@@ -8,7 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function AdminPage() {
-  const { sessionToken, isAuthenticated } = useWeb3();
+  const { isAuthenticated } = useWeb3();
   const [activeTab, setActiveTab] = useState<string>("kyc");
   
   // Loan applications state
@@ -36,12 +36,10 @@ export default function AdminPage() {
   
   // 获取待处理 KYC 申请
   const fetchKYCApplications = async () => {
-    if (!sessionToken) return;
-    
     try {
       const response = await fetch("/api/admin/approve-kyc", {
         headers: {
-          'Authorization': `Bearer ${sessionToken}`
+          'Content-Type': 'application/json'
         }
       });
       const data = await response.json();
@@ -60,12 +58,12 @@ export default function AdminPage() {
       fetchApplications();
       const interval = setInterval(fetchApplications, 5000);
       return () => clearInterval(interval);
-    } else if (activeTab === "kyc" && sessionToken) {
+    } else if (activeTab === "kyc") {
       fetchKYCApplications();
       const interval = setInterval(fetchKYCApplications, 10000);
       return () => clearInterval(interval);
     }
-  }, [activeTab, sessionToken]);
+  }, [activeTab]);
   
   // 处理借贷申请
   const handleProcess = async (applicationId: string, action: string) => {
@@ -96,16 +94,13 @@ export default function AdminPage() {
   
   // 处理 KYC 审批
   const handleApproveKYC = async (walletAddress: string) => {
-    if (!sessionToken) return;
-    
     setKycProcessing(walletAddress);
     
     try {
       const response = await fetch("/api/admin/approve-kyc", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${sessionToken}`
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({ walletAddress })
       });

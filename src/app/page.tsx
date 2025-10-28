@@ -12,6 +12,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { getAlpacaAccountDetails } from "./actions/alpaca";
+import { getTokenizationHistory } from "./actions/tokenization";
+import { createIdentity, getTokenizedStockBalance, mintTStockToUser } from "./actions/erc3643";
 
 // Define a type for the portfolio position (from Alpaca)
 interface Position {
@@ -54,7 +57,7 @@ const tokenizedAssets = [
 ];
 
 export default function HomePage() {
-    const { address, signer, sessionToken, isAuthenticated, isInitialized: web3Initialized, user } = useWeb3();
+    const { address, signer, isAuthenticated, isInitialized: web3Initialized, user } = useWeb3();
     const [portfolio, setPortfolio] = useState<Position[]>([]);
     const [accountDetails, setAccountDetails] = useState<any>(null);
     const [tokenizedPositions, setTokenizedPositions] = useState<TokenizedPosition[]>([]);
@@ -77,7 +80,7 @@ export default function HomePage() {
             }
 
             // Check if user is authenticated
-            if (!sessionToken || !isAuthenticated) {
+            if (!isAuthenticated) {
                 setError("Please sign in to view your portfolio");
                 setIsLoading(false);
                 return;
@@ -88,25 +91,17 @@ export default function HomePage() {
             setIsLoading(true);
 
             try {
-                // Prepare headers with authorization
-                const headers = {
-                    'Authorization': `Bearer ${sessionToken}`,
-                    'Content-Type': 'application/json',
-                };
+                // Prepare headers
 
                 // Fetch portfolio (includes account details and positions)
-                const portfolioResponse = await fetch("/api/alpaca/portfolio", { headers });
-
-                if (!portfolioResponse.ok) {
-                    const errorData = await portfolioResponse.json();
-                    throw new Error(errorData.error || "Failed to fetch portfolio data");
+                const alpacaAccountDetails = await getAlpacaAccountDetails(address as string);
+                if (!alpacaAccountDetails) {
+                    throw new Error("Failed to fetch portfolio data");
                 }
 
-                const portfolioData = await portfolioResponse.json();
-
                 // Set account details and positions from portfolio API
-                setAccountDetails(portfolioData.account);
-                setPortfolio(portfolioData.positions || []);
+                setAccountDetails(alpacaAccountDetails.account);
+                setPortfolio(alpacaAccountDetails.positions || []);
             } catch (err: any) {
                 setError(err.message);
                 console.error('Error fetching portfolio:', err);
@@ -116,61 +111,43 @@ export default function HomePage() {
         }
 
         fetchPortfolio();
-    }, [sessionToken, isAuthenticated, web3Initialized]);
+    }, [isAuthenticated, web3Initialized]);
 
     // Fetch ERC-3643 token balance from blockchain
     const fetchTokenBalance = useCallback(async () => {
-        if (!sessionToken || !address) return;
+        if (!address) return;
         
         try {
-            const response = await fetch(`/api/erc3643/token/mint`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${sessionToken}`,
-                    'Content-Type': 'application/json',
-                },
-            });
-            const data = await response.json();
-
-            if (data.success) {
-                setTokenBalance(data.balance || "0");
-            }
+            const tStockBalance = await getTokenizedStockBalance(address)
+            setTokenBalance(tStockBalance.balance || "0");
         } catch (error) {
             console.error("Failed to fetch token balance:", error);
             setTokenBalance("0");
         }
-    }, [sessionToken, address]);
+    }, [address]);
 
     const fetchTokenizedPositions = useCallback(async () => {
-        if (!sessionToken) return;
+        if (!address) return;
         
         try {
-            const response = await fetch('/api/tokenize/positions', {
-                headers: {
-                    'Authorization': `Bearer ${sessionToken}`,
-                    'Content-Type': 'application/json',
-                },
-            });
-            const data = await response.json();
-            if (data.success) {
-                setTokenizedPositions(data.positions);
-            }
+            const tokenizationHistory = await getTokenizationHistory(address);
+            setTokenizedPositions(tokenizationHistory || []);
         } catch (err) {
             console.error("Error fetching tokenized positions:", err);
         }
-    }, [sessionToken]);
+    }, [address]);
 
     // Fetch tokenized positions and balance
     useEffect(() => {
-        if (sessionToken) {
+        if (address) {
             fetchTokenBalance();
             fetchTokenizedPositions();
         }
-    }, [sessionToken, fetchTokenBalance, fetchTokenizedPositions]);
+    }, [address, fetchTokenBalance, fetchTokenizedPositions]);
     
     // Manually create and verify Identity
     const handleCreateIdentity = async (recreate = false) => {
-        if (!sessionToken) return;
+        if (!address) return;
         
         if (recreate) {
             if (!confirm(
@@ -184,32 +161,24 @@ export default function HomePage() {
         
         setIsCreatingIdentity(true);
         try {
-            const response = await fetch('/api/erc3643/identity/create', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${sessionToken}`,
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ recreate })
-            });
+            const response = await createIdentity(address, recreate);
             
-            if (response.ok) {
-                const data = await response.json();
-                if (data.isRegistered) {
+            
+            if (response.success) {
+                if (response.isRegistered) {
                     alert(
                         `Identity ${recreate ? 'recreated' : 'created'} and verified successfully!\n\n` +
-                        `✓ Identity Address: ${data.identityAddress}\n` +
+                        `✓ Identity Address: ${response.identityAddress}\n` +
                         `✓ KYC Claim issued\n` +
                         `✓ Registered to IdentityRegistry\n\n` +
                         `You can now use ERC-3643 tokens!`
                     );
                 } else {
-                    alert(`Identity ${recreate ? 'recreated' : 'created'}!\nAddress: ${data.identityAddress}\n\n${data.message}`);
+                    alert(`Identity ${recreate ? 'recreated' : 'created'}!\nAddress: ${response.identityAddress}\n\n${response.message}`);
                 }
                 window.location.reload(); // Refresh page to update user info
             } else {
-                const errorData = await response.json();
-                alert(`Operation failed: ${errorData.error || 'Unknown error'}`);
+                alert(`Operation failed: ${response.error || 'Unknown error'}`);
             }
         } catch (err) {
             console.error('Error creating identity:', err);
@@ -306,33 +275,15 @@ export default function HomePage() {
             });
 
             // Call ERC-3643 mint API
-            const mintResponse = await fetch("/api/erc3643/token/mint", {
-                method: "POST",
-                headers: { 
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${sessionToken}`,
-                },
-                body: JSON.stringify({
-                    amount: amount,
-                    stockSymbol: selectedPosition.symbol,
-                    symbol: 'RWAST' // ERC-3643 token symbol
-                }),
-            });
+            const mintResponse = await mintTStockToUser(address as string, amount, selectedPosition.symbol, selectedPosition.symbol)
 
-            const mintResult = await mintResponse.json();
-
-            if (!mintResponse.ok) {
-                throw new Error(mintResult.error || "Failed to mint ERC-3643 tokens");
-            }
-
-            console.log('Mint result:', mintResult);
+            console.log('Mint result:', mintResponse);
 
             alert(
                 `Tokenization successful!\n\n` +
                 `✓ Minted ${amount} ERC-3643 tokens\n` +
                 `✓ Stock: ${selectedPosition.symbol}\n` +
-                `✓ TX Hash: ${mintResult.transactionHash?.slice(0, 10)}...\n` +
-                `✓ New Balance: ${mintResult.newBalance} tokens\n` +
+                `✓ TX Hash: ${mintResponse.transactionHash?.slice(0, 10)}...\n` +
                 `✓ Recorded in database`
             );
             
@@ -359,7 +310,7 @@ export default function HomePage() {
         );
     }
 
-    if (error && !sessionToken) {
+    if (error && !isAuthenticated) {
         return (
             <div className="min-h-screen bg-white flex items-center justify-center">
                 <div className="text-center">

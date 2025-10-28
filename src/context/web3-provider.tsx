@@ -2,11 +2,16 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { ethers } from 'ethers';
+import { getUser } from '@/app/actions/user';
 
 // Extend Window interface for ethereum
 declare global {
     interface Window {
-        ethereum?: any;
+        ethereum?: {
+            request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
+            on: (event: string, callback: (...args: unknown[]) => void) => void;
+            removeListener: (event: string, callback: (...args: unknown[]) => void) => void;
+        };
     }
 }
 
@@ -41,12 +46,10 @@ interface Web3ContextType {
     signer: ethers.JsonRpcSigner | null;
     address: string | null;
     isAuthenticated: boolean;
-    sessionToken: string | null;
     user: UserInfo | null;
     isLoading: boolean;
     isInitialized: boolean;
     connectWallet: () => Promise<void>;
-    authenticateWallet: () => Promise<void>;
     disconnectWallet: () => void;
     refreshUserInfo: () => Promise<void>;
 }
@@ -65,64 +68,58 @@ export const Web3Provider = ({ children }: Web3ProviderProps) => {
     const [signer, setSigner] = useState<ethers.JsonRpcSigner | null>(null);
     const [address, setAddress] = useState<string | null>(null);
     const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-    const [sessionToken, setSessionToken] = useState<string | null>(null);
     const [user, setUser] = useState<UserInfo | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [isInitialized, setIsInitialized] = useState<boolean>(false);
 
     // Fetch user information from backend
-    const fetchUserInfo = useCallback(async (token: string) => {
+    const fetchUserInfo = useCallback(async (walletAddress: string) => {
         try {
-            const response = await fetch('/api/user/register', {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-            });
-            
-            if (response.ok) {
-                const data = await response.json();
-                setUser(data.user);
+            const user = await getUser(walletAddress);
+            if (user) {
+                setUser(user);
                 
                 // Automatically create and verify Identity for legacy accounts (if they don't have one)
-                if (data.user && !data.user.erc3643?.identityAddress) {
-                    console.log('User does not have Identity, creating and verifying automatically...');
-                    try {
-                        const identityResponse = await fetch('/api/erc3643/identity/create', {
-                            method: 'POST',
-                            headers: {
-                                'Authorization': `Bearer ${token}`,
-                                'Content-Type': 'application/json',
-                            },
-                        });
+                // if (user && !user.erc3643?.identityAddress) {
+                //     console.log('User does not have Identity, creating and verifying automatically...');
+                //     try {
+                //         const identityResponse = await fetch('/api/erc3643/identity/create', {
+                //             method: 'POST',
+                //             headers: {
+                //                 'Content-Type': 'application/json',
+                //             },
+                //             body: JSON.stringify({ walletAddress }),
+                //         });
                         
-                        if (identityResponse.ok) {
-                            const identityData = await identityResponse.json();
-                            if (identityData.isRegistered) {
-                                console.log('Identity created and verified automatically:', identityData.identityAddress);
-                                console.log('KYC Status:', identityData.kycStatus);
-                            } else {
-                                console.log('Identity created:', identityData.identityAddress);
-                            }
+                //         if (identityResponse.ok) {
+                //             const identityData = await identityResponse.json();
+                //             if (identityData.isRegistered) {
+                //                 console.log('Identity created and verified automatically:', identityData.identityAddress);
+                //                 console.log('KYC Status:', identityData.kycStatus);
+                //             } else {
+                //                 console.log('Identity created:', identityData.identityAddress);
+                //             }
                             
-                            // Refresh user info to get the newly created and verified Identity
-                            const refreshResponse = await fetch('/api/user/register', {
-                                headers: {
-                                    'Authorization': `Bearer ${token}`,
-                                },
-                            });
+                //             // Refresh user info to get the newly created and verified Identity
+                //             const refreshResponse = await fetch('/api/user/register', {
+                //                 headers: {
+                //                     'Content-Type': 'application/json',
+                //                 },
+                //                 body: JSON.stringify({ walletAddress }),
+                //             });
                             
-                            if (refreshResponse.ok) {
-                                const refreshData = await refreshResponse.json();
-                                setUser(refreshData.user);
-                            }
-                        } else {
-                            console.warn('Failed to create Identity automatically:', await identityResponse.text());
-                        }
-                    } catch (identityError) {
-                        console.error('Error creating Identity automatically:', identityError);
-                        // Does not affect normal login flow
-                    }
-                }
+                //             if (refreshResponse.ok) {
+                //                 const refreshData = await refreshResponse.json();
+                //                 setUser(refreshData.user);
+                //             }
+                //         } else {
+                //             console.warn('Failed to create Identity automatically:', await identityResponse.text());
+                //         }
+                //     } catch (identityError) {
+                //         console.error('Error creating Identity automatically:', identityError);
+                //         // Does not affect normal login flow
+                //     }
+                // }
             }
         } catch (error) {
             console.error('Failed to fetch user info:', error);
@@ -132,11 +129,8 @@ export const Web3Provider = ({ children }: Web3ProviderProps) => {
     // Load session from localStorage on mount and reconnect wallet
     useEffect(() => {
         const initializeSession = async () => {
-            const storedToken = localStorage.getItem('sessionToken');
             const storedAddress = localStorage.getItem('walletAddress');
-            
-            if (storedToken && storedAddress) {
-                setSessionToken(storedToken);
+            if (storedAddress) {
                 setAddress(storedAddress);
                 setIsAuthenticated(true);
                 
@@ -162,7 +156,7 @@ export const Web3Provider = ({ children }: Web3ProviderProps) => {
                 }
                 
                 // Load user info
-                await fetchUserInfo(storedToken);
+                await fetchUserInfo(storedAddress);
             }
             
             // Mark as initialized after checking localStorage
@@ -174,8 +168,8 @@ export const Web3Provider = ({ children }: Web3ProviderProps) => {
 
     // Function to refresh user info
     const refreshUserInfo = async () => {
-        if (sessionToken) {
-            await fetchUserInfo(sessionToken);
+        if (address) {
+            await fetchUserInfo(address);
         }
     };
 
@@ -192,7 +186,12 @@ export const Web3Provider = ({ children }: Web3ProviderProps) => {
                 
                 setSigner(signerInstance);
                 setAddress(accounts[0]);
-
+                localStorage.setItem('walletAddress', accounts[0]);
+                
+                // Automatically authenticate user after connecting wallet
+                setIsAuthenticated(true);
+                await fetchUserInfo(accounts[0]);
+                
                 setIsLoading(false);
             } catch (error) {
                 console.error("Failed to connect wallet:", error);
@@ -204,119 +203,29 @@ export const Web3Provider = ({ children }: Web3ProviderProps) => {
         }
     };
 
-    // Function to authenticate wallet via signature
-    const authenticateWallet = useCallback(async () => {
-        try {
-            setIsLoading(true);
-            
-            // Step 0: If wallet not connected, connect first
-            let currentAddress = address;
-            let currentSigner = signer;
-            
-            if (!currentAddress || !currentSigner) {
-                if (typeof window.ethereum === 'undefined') {
-                    alert('Please install MetaMask or another Web3 wallet!');
-                    setIsLoading(false);
-                    return;
-                }
-                
-                // Connect wallet
-                const web3Provider = new ethers.BrowserProvider(window.ethereum);
-                setProvider(web3Provider);
-
-                const accounts = await web3Provider.send('eth_requestAccounts', []);
-                const signerInstance = await web3Provider.getSigner();
-                
-                setSigner(signerInstance);
-                setAddress(accounts[0]);
-                
-                // Use the newly connected wallet
-                currentAddress = accounts[0];
-                currentSigner = signerInstance;
-            }
-
-            // Step 1: Request nonce from backend
-            const nonceResponse = await fetch('/api/auth/nonce', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ address: currentAddress }),
-            });
-
-            if (!nonceResponse.ok) {
-                throw new Error('Failed to get nonce');
-            }
-
-            const { message } = await nonceResponse.json();
-
-            // Step 2: Sign the message
-            const signature = await currentSigner.signMessage(message);
-
-            // Step 3: Verify signature with backend
-            const verifyResponse = await fetch('/api/auth/verify', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    address: currentAddress,
-                    signature,
-                }),
-            });
-
-            if (!verifyResponse.ok) {
-                throw new Error('Failed to verify signature');
-            }
-
-            const { sessionToken: token, user: userData } = await verifyResponse.json();
-
-            // Store session
-            setSessionToken(token);
-            setIsAuthenticated(true);
-            setUser(userData);
-            
-            localStorage.setItem('sessionToken', token);
-            if (currentAddress) {
-                localStorage.setItem('walletAddress', currentAddress);
-            }
-
-            setIsLoading(false);
-        } catch (error) {
-            console.error("Authentication failed:", error);
-            setIsLoading(false);
-            // Don't show alert for user-rejected signatures
-            if (error instanceof Error && !error.message.includes('user rejected')) {
-                alert('Authentication failed. Please try again.');
-            }
-        }
-    }, [address, signer]);
-
     // Function to disconnect the wallet
     const disconnectWallet = useCallback(() => {
         setProvider(null);
         setSigner(null);
         setAddress(null);
         setIsAuthenticated(false);
-        setSessionToken(null);
         setUser(null);
         
-        localStorage.removeItem('sessionToken');
         localStorage.removeItem('walletAddress');
     }, []);
 
     // Effect to handle account and network changes
     useEffect(() => {
-        const handleAccountsChanged = (accounts: string[]) => {
+        const handleAccountsChanged = (...args: unknown[]) => {
+            const accounts = args[0] as string[];
             if (accounts.length === 0) {
                 disconnectWallet();
             } else if (accounts[0] !== address) {
-                // Account changed, need to re-authenticate
+                // Account changed, need to re-login
                 setAddress(accounts[0]);
                 setIsAuthenticated(false);
-                setSessionToken(null);
                 setUser(null);
-                localStorage.removeItem('sessionToken');
+                localStorage.removeItem('walletAddress');
                 
                 // Re-fetch signer as the account has changed
                 if (provider) {
@@ -353,12 +262,10 @@ export const Web3Provider = ({ children }: Web3ProviderProps) => {
                 signer, 
                 address, 
                 isAuthenticated,
-                sessionToken,
                 user,
                 isLoading,
                 isInitialized,
                 connectWallet, 
-                authenticateWallet,
                 disconnectWallet,
                 refreshUserInfo,
             }}
