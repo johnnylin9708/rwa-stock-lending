@@ -56,22 +56,22 @@ interface KYCFormData {
 
 export default function SignUpPage() {
   const router = useRouter();
-  const { address, isAuthenticated, user, authenticateWallet, isLoading } = useWeb3();
+  const { address, isAuthenticated, sessionToken,user, authenticateWallet, isLoading } = useWeb3();
   
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState<KYCFormData>({
     givenName: "",
     familyName: "",
     email: "",
-    phoneNumber: "",
-    dateOfBirth: "",
-    taxId: "",
+    phoneNumber: "1234567890",
+    dateOfBirth: "01/01/1990",
+    taxId: "666-55-4321",
     address: {
-      streetAddress: "",
-      unit: "",
-      city: "",
-      state: "",
-      postalCode: "",
+      streetAddress: "123 Main St",
+      unit: "3F-1",
+      city: "New York",
+      state: "NY",
+      postalCode: "10001",
       country: "TWN",
     },
     citizenship: "TWN",
@@ -84,9 +84,9 @@ export default function SignUpPage() {
     investmentObjective: "growth",
     riskTolerance: "moderate",
     trustedContact: {
-      givenName: "",
-      familyName: "",
-      emailAddress: "",
+      givenName: "John",
+      familyName: "Doe",
+      emailAddress: "jane.doe@example.com",
       phoneNumber: "",
       streetAddress: "",
       city: "",
@@ -265,7 +265,7 @@ export default function SignUpPage() {
 
       const result = await response.json();
 
-      if (response.ok) {
+      if (response.ok || response.status === 409) {
         setSuccess("KYC submitted successfully! Creating and verifying on-chain identity...");
         
         // Step 2: Automatically create ERC-3643 Identity (with auto-verification)
@@ -286,7 +286,7 @@ export default function SignUpPage() {
             );
             setTimeout(() => {
               router.push("/");
-            }, 3000);
+            }, 1000);
           } else if (identityResponse.ok) {
             // Identity created but not fully registered
             setSuccess(
@@ -294,7 +294,7 @@ export default function SignUpPage() {
             );
             setTimeout(() => {
               router.push("/");
-            }, 2000);
+            }, 1000);
           } else {
             // KYC succeeded but Identity creation failed, still considered successful, can be created later
             setSuccess(
@@ -303,7 +303,7 @@ export default function SignUpPage() {
             );
             setTimeout(() => {
               router.push("/");
-            }, 2000);
+            }, 1000);
           }
         } catch (identityError) {
           console.error("Identity creation failed:", identityError);
@@ -311,7 +311,7 @@ export default function SignUpPage() {
           setSuccess(result.message || "Registration successful! KYC submitted.");
           setTimeout(() => {
             router.push("/");
-          }, 2000);
+          }, 1000);
         }
       } else {
         setError(result.error || "Registration failed, please try again");

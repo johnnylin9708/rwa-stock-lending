@@ -4,7 +4,7 @@
 import { MongoClient, Db } from 'mongodb';
 
 if (!process.env.MONGODB_URI) {
-  throw new Error('请在.env.local中添加MONGODB_URI');
+  throw new Error('Please add MONGODB_URI to your .env.local');
 }
 
 const uri = process.env.MONGODB_URI;
@@ -14,7 +14,7 @@ let client: MongoClient;
 let clientPromise: Promise<MongoClient>;
 
 if (process.env.NODE_ENV === 'development') {
-  // 开发环境使用全局变量避免热重载时创建多个连接
+  // Use global variable to avoid creating multiple connections during hot reload
   let globalWithMongo = global as typeof globalThis & {
     _mongoClientPromise?: Promise<MongoClient>;
   };
@@ -25,7 +25,7 @@ if (process.env.NODE_ENV === 'development') {
   }
   clientPromise = globalWithMongo._mongoClientPromise;
 } else {
-  // 生产环境创建新连接
+  // Create new connection in production environment
   client = new MongoClient(uri, options);
   clientPromise = client.connect();
 }

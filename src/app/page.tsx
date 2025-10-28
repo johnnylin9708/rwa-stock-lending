@@ -132,8 +132,6 @@ export default function HomePage() {
             });
             const data = await response.json();
 
-            console.log(data)
-            
             if (data.success) {
                 setTokenBalance(data.balance || "0");
             }

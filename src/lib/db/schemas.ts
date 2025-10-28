@@ -2,18 +2,18 @@
  * MongoDB Schemas for POC
  */
 
-// 用户信息 - 整合 Alpaca Broker API
+// User information - combined with Alpaca Broker API
 export interface UserSchema {
   _id?: string;
   walletAddress: string;
   email: string;
   
-  // 认证相关
-  nonce?: string; // 用于 Web3 签名验证
+  // Authentication related
+  nonce?: string; // Used for Web3 signature verification
   lastLogin?: Date;
   sessionToken?: string;
   
-  // KYC 信息
+  // KYC information
   kycStatus: 'pending' | 'approved' | 'rejected' | 'not_started';
   kycData?: {
     fullName: string;
@@ -37,34 +37,34 @@ export interface UserSchema {
     rejectionReason?: string;
   };
   
-  // Alpaca Broker 账户信息
+  // Alpaca Broker account information
   alpacaAccount?: {
-    accountId: string; // Alpaca 分配的账户 ID
-    accountNumber?: string; // 账户编号
+    accountId: string; // Alpaca assigned account ID
+    accountNumber?: string; // Account number
     status: 'SUBMITTED' | 'ACTION_REQUIRED' | 'EDITED' | 'APPROVAL_PENDING' | 'APPROVED' | 'REJECTED' | 'ACTIVE' | 'ACCOUNT_CLOSED';
     accountType?: 'trading' | 'margin';
     createdAt: Date;
     approvedAt?: Date;
     currency?: 'USD';
-    lastSync?: Date; // 最后同步时间
+    lastSync?: Date; // Last sync time
   };
   
-  // ERC-3643 相关 (OnchainID & T-REX Token)
+  // ERC-3643 related (OnchainID & T-REX Token)
   erc3643?: {
-    identityAddress?: string;           // OnchainID Identity 合约地址
-    identityCreatedAt?: Date;          // Identity 创建时间
+    identityAddress?: string;           // OnchainID Identity contract address
+    identityCreatedAt?: Date;          // Identity creation time
     claims: Array<{
       claimId: string;
-      topic: string;                    // 例如: "KYC_VERIFIED"
-      issuer: string;                   // ClaimIssuer 地址
+      topic: string;                    // Example: "KYC_VERIFIED"
+      issuer: string;                   // ClaimIssuer address
       signature: string;
       data: string;
       issuedAt: Date;
       isValid: boolean;
     }>;
-    isRegistered: boolean;              // 是否已注册到 IdentityRegistry
+    isRegistered: boolean;              // Whether registered to IdentityRegistry
     registeredAt?: Date;
-    country: number;                    // ISO 3166-1 数字代码
+    country: number;                    // ISO 3166-1 numeric code
   };
   
   bankAccounts?: BankAccountSchema[];
@@ -72,7 +72,7 @@ export interface UserSchema {
   updatedAt: Date;
 }
 
-// 银行账户
+// Bank account
 export interface BankAccountSchema {
   bankName: string;
   accountNumber: string;
@@ -81,65 +81,62 @@ export interface BankAccountSchema {
   verifiedAt?: Date;
 }
 
-// 借贷申请
+// Loan application
 export interface LoanApplicationSchema {
   _id?: string;
   userId: string;
   walletAddress: string;
   
-  // 申请信息
+  // Application information
   assetType: 'STOCK' | 'BOND';
-  assetSymbol: string;  // 例如: AAPL, GOOGL
-  assetAmount: number;  // 股票/债券数量
-  assetValue: number;   // 美元价值
+  assetSymbol: string;  // Example: AAPL, GOOGL
+  assetAmount: number;  // Stock/bond quantity
+  assetValue: number;   // USD value
   
-  // 借贷条件
-  requestedLoanAmount: number;  // 请求借款金额(USDC)
-  collateralFactor: number;     // 抵押因子
-  estimatedAPY: number;         // 预估年化利率
+  // Loan conditions
+  requestedLoanAmount: number;  // Requested loan amount(USDC)
+  collateralFactor: number;     // Collateral factor
+  estimatedAPY: number;         // Estimated APY
   
-  // 状态流程
-  status: 'submitted' | 'bank_processing' | 'bank_confirmed' | 'minting' | 'completed' | 'rejected';
-  
-  // 银行圈存信息
-  bankReserveId?: string;  // 银行圈存ID
+  // Bank reserve information
+  bankReserveId?: string;  // Bank reserve ID
   bankConfirmedAt?: Date;
   
-  // 铸币信息
-  tokenizedAssetAddress?: string;  // 代币合约地址
-  mintTxHash?: string;             // 铸币交易哈希
-  mintedAmount?: number;           // 铸造数量
+  // Tokenization information
+  tokenizedAssetAddress?: string;  // Token contract address
+  mintTxHash?: string;             // Tokenization transaction hash
+  mintedAmount?: number;           // Tokenized quantity
   mintedAt?: Date;
   
-  // 时间戳
+  // Timestamp
   submittedAt: Date;
   updatedAt: Date;
   completedAt?: Date;
   
-  // 备注
+  // Notes
   notes?: string;
 }
 
-// 资产圈存记录
+// Asset reserve record
 export interface AssetReserveSchema {
   _id?: string;
   loanApplicationId: string;
   userId: string;
   
-  // 银行信息
+  // Bank information
   bankName: string;
   accountNumber: string;
   
-  // 资产信息
+  // Asset information
   assetType: 'STOCK' | 'BOND';
   assetSymbol: string;
   quantity: number;
   reservedValue: number;
   
-  // 状态
+  // Status
   status: 'pending' | 'confirmed' | 'released' | 'failed';
   
-  // 银行响应
+  // Bank response
   bankReferenceId?: string;
   bankConfirmationDate?: Date;
   
@@ -147,48 +144,48 @@ export interface AssetReserveSchema {
   updatedAt: Date;
 }
 
-// 代币铸造记录
+// Token minting record
 export interface TokenMintingSchema {
   _id?: string;
   loanApplicationId: string;
   userId: string;
   walletAddress: string;
   
-  // 代币信息
+  // Token information
   tokenSymbol: string;           // TAAPL, TGOOGL等
   tokenContractAddress: string;
   amount: number;
   
-  // 交易信息
+  // Transaction information
   txHash: string;
   blockNumber?: number;
   status: 'pending' | 'confirmed' | 'failed';
   
-  // 时间戳
+  // Timestamp
   initiatedAt: Date;
   confirmedAt?: Date;
 }
 
-// 代币化持仓记录
+// Tokenized position record
 export interface TokenizedPositionSchema {
   _id?: string;
   userId: string;
   walletAddress: string;
   
-  // 原始股票信息
+  // Original stock information
   originalSymbol: string;      // AAPL, GOOGL, etc
-  alpacaPositionQty: number;   // Alpaca上的原始持仓数量
+  alpacaPositionQty: number;   // Original position quantity on Alpaca
   
-  // 已代币化信息
-  tokenizedQty: number;        // 已代币化数量
-  frozenQty: number;           // 冻结数量
-  availableQty: number;        // 可用数量 (alpacaPositionQty - frozenQty)
+  // Tokenized information
+  tokenizedQty: number;        // Tokenized quantity
+  frozenQty: number;           // Frozen quantity
+  availableQty: number;        // Available quantity (alpacaPositionQty - frozenQty)
   
-  // 代币合约信息
+  // Token contract information
   tokenSymbol: string;         // TAAPL, TGOOGL
   tokenContractAddress: string;
   
-  // 代币化记录
+  // Tokenization record
   tokenizations: {
     amount: number;
     txHash: string;
@@ -197,14 +194,14 @@ export interface TokenizedPositionSchema {
     status: 'pending' | 'confirmed' | 'failed';
   }[];
   
-  // 状态
+  // Status
   status: 'active' | 'closed';
   
   createdAt: Date;
   updatedAt: Date;
 }
 
-// 系统日志
+// System log
 export interface ActivityLogSchema {
   _id?: string;
   userId: string;

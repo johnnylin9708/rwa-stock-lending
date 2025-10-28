@@ -5,49 +5,14 @@
 // Supported tokenized assets
 export const SUPPORTED_ASSETS = [
     {
-        symbol: "TAAPL",
-        originalSymbol: "AAPL",
-        name: "Tokenized Apple Inc.",
-        type: "STOCK",
+        symbol: "TSPY",
+        originalSymbol: "SPY",  // Original stock symbol
+        name: "Tokenized S&P 500 ETF",
+        type: "ETF",
         collateralFactor: 0.75,
         liquidationThreshold: 0.85,
-        icon: "🍎"
-    },
-    {
-        symbol: "TGOOGL",
-        originalSymbol: "GOOGL",
-        name: "Tokenized Alphabet Inc.",
-        type: "STOCK",
-        collateralFactor: 0.75,
-        liquidationThreshold: 0.85,
-        icon: "📱"
-    },
-    {
-        symbol: "TTSLA",
-        originalSymbol: "TSLA",
-        name: "Tokenized Tesla Inc.",
-        type: "STOCK",
-        collateralFactor: 0.65, // Lower due to higher volatility
-        liquidationThreshold: 0.80,
-        icon: "⚡"
-    },
-    {
-        symbol: "TMSFT",
-        originalSymbol: "MSFT",
-        name: "Tokenized Microsoft Corp.",
-        type: "STOCK",
-        collateralFactor: 0.75,
-        liquidationThreshold: 0.85,
-        icon: "💻"
-    },
-    {
-        symbol: "TUSG",
-        originalSymbol: "USG",
-        name: "Tokenized US Government Bonds",
-        type: "BOND",
-        collateralFactor: 0.90, // Higher for stable bonds
-        liquidationThreshold: 0.95,
-        icon: "📊"
+        tokenAddress: "0xBEae6Fa62362aB593B498692FD09002a9eEd52dc",
+        tokenStandard: "ERC-3643",
     }
 ];
 
