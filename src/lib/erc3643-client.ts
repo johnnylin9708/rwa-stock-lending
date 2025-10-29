@@ -378,7 +378,7 @@ export async function registerUserToRegistry(
         const tx = await identityRegistry.registerIdentity(
             userWalletAddress,
             identityAddress,
-            country
+            158
         );
         
         const receipt = await tx.wait();
