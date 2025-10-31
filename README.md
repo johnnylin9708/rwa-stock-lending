@@ -1,202 +1,179 @@
-# RWA Stock Lending Platform
+# RWA Stock Lending PoC
 
-A decentralized lending platform for tokenized Real World Assets (RWA), specifically stocks and bonds. Users can deposit tokenized assets as collateral and borrow stablecoins against them.
+A Next.js proof‑of‑concept for tokenized stock lending that showcases:
+- ERC‑3643 identity and claims (OnchainID + T‑REX)
+- Self Protocol identity verification flow (QR, universal link)
+- Alpaca broker simulation and price data
+- Lending integration and price oracles with Compound/Chainlink
 
-## 🎯 Core Features
+This PoC demonstrates end‑to‑end identity‑gated tokenization and lending.
 
-### For Users
-- **Deposit Collateral**: Deposit tokenized stocks/bonds as collateral
-- **Borrow Stablecoins**: Borrow against your collateral with competitive rates
-- **Real-time Market Data**: Live price feeds from Alpaca API
-- **Health Factor Monitoring**: Track your position's safety in real-time
-- **Trading Integration**: Execute trades directly through Alpaca
-- **Transaction History**: View all your lending activities
+## 🏗️ Architecture Overview
 
-### For the Platform
-- **Dynamic Interest Rates**: Compound-style kinked interest rate model
-- **Risk Management**: Automated liquidation for underwater positions
-- **Multiple Assets**: Support for various tokenized stocks and bonds
-- **Price Oracle Integration**: Chainlink and Alpaca price feeds
-- **Smart Contract Security**: Built with OpenZeppelin standards
+- **Web app**: Next.js App Router, React, TypeScript, TailwindCSS
+- **Data**: MongoDB for users, KYC status, ERC‑3643 identity snapshots, tokenization history
+- **Web3**: Ethers v6; OnchainID/T‑REX contracts for ERC‑3643; Compound client for lending
+- **Price/Market**: Alpaca API client; Chainlink oracle script for SPY
 
-## 🏗️ Architecture
 
-### Technology Stack
-- **Frontend**: Next.js 15, React 19, TypeScript
-- **Smart Contracts**: Solidity 0.8.20, OpenZeppelin
-- **Blockchain**: Ethereum (Sepolia testnet), Binance Smart Chain
-- **Market Data**: Alpaca Markets API
-- **Price Oracles**: Chainlink, Alpaca
-- **Web3**: Ethers.js v6
-- **UI**: Tailwind CSS, Radix UI
-
-### Project Structure
+ <!-- api/
+      admin/
+        approve-kyc/route.ts        # Admin approval
+        process-loan/route.ts       # Loan processing
+      loan/apply/route.ts           # Loan application
+      prices/route.ts               # Price feed -->
+### Project Structure (key folders)
 ```
-├── src/
-│   ├── app/                    # Next.js app router pages
-│   │   ├── api/               # API routes
-│   │   │   ├── alpaca/       # Alpaca integration
-│   │   │   ├── lending/      # Lending APIs
-│   │   │   └── prices/       # Price feeds
-│   │   ├── dashboard/        # User dashboard
-│   │   ├── lending/          # Lending interface
-│   │   ├── trade/            # Trading interface
-│   │   └── history/          # Transaction history
-│   ├── components/            # React components
-│   ├── contracts/            # Contract ABIs and addresses
-│   ├── context/              # React contexts (Web3)
-│   └── lib/                  # Utilities and helpers
-├── contracts/                 # Solidity smart contracts
-│   ├── TokenizedAsset.sol    # ERC20 tokenized assets
-│   ├── LendingPool.sol       # Main lending protocol
-│   └── InterestRateModel.sol # Interest calculations
-└── public/                    # Static assets
+src/
+  app/
+    actions/
+      erc3643.ts                    # Identity, claims, minting
+      alpaca.ts                     # Alpaca helpers
+      tokenization.ts               # Tokenization helpers
+      user.ts                       # User helpers
+    self/page.tsx                   # Self verification page (QR)
+    lending/page.tsx                # Lending UI
+    admin/page.tsx                  # Admin UI
+    page.tsx                        # Home
+  components/                       # UI components
+  context/web3-provider.tsx         # Wallet/provider context
+  lib/
+    alpaca-client.ts                # Alpaca client
+    compound-client.ts              # Compound client
+    erc3643-client.ts               # ERC‑3643 contract calls
+    db/ { mongodb.ts, schemas.ts }  # Mongo connection + schemas
+contracts/                          # Solidity contracts (oracle, etc.)
+scripts/                            # Hardhat + oracle setup
 ```
 
-## 🚀 Quick Start
+## 🔑 Core Concepts (PoC Focus)
 
-### Prerequisites
-- Node.js 18+
-- MetaMask wallet
-- Alpaca API account
-- Infura/Alchemy account
+### 1) ERC‑3643 Identity and Claims (OnchainID + T‑REX)
+- Create identity via IdentityProxy, grant management key, and optionally register in `IdentityRegistry`.
+- Add a KYC claim from a trusted issuer; registry + claim topic must be correctly configured.
 
-### Installation
+### 2) Self Protocol Flow (off‑chain verification UX)
+- `src/app/self/page.tsx` renders a QR (`SelfQRcodeWrapper`) built with `SelfAppBuilder`.
+- On success callback, the app can call `addSelfVerifiedClaim` to persist a Self‑verified claim and update user KYC status.
+- This complements ERC‑3643 on‑chain identity by recording off‑chain verification signals.
 
-1. Clone the repository:
+### 3) Alpaca Broker Simulation + Prices
+- `src/lib/alpaca-client.ts` integrates Alpaca endpoints to fetch quotes and simulate a brokerage account.
+- Tokenization actions can refer to Alpaca balances to freeze/represent tokenized quantities in Mongo.
+
+### 4) Lending and Oracles (Compound/Chainlink)
+- Chainlink setup scripts: `scripts/setup-chainlink.js` and contracts like `SPYPriceOracle.sol` to provide reference prices.
+- Future integration with Compound (Comet) to accept tokenized assets as collateral.
+- Client helpers in `src/lib/compound-client.ts` wrap interactions for UI/API.
+
+## Prerequisites
+
+- Node.js 20+
+- [Self Mobile App](https://self.xyz/download) (iOS/Android)
+
+## ⚙️ Environment Variables
 ```bash
-git clone <repository-url>
-cd rwa-stock-stacking-platform
+cp .env.example .env
 ```
 
-2. Install dependencies:
+- Mongo
+  - `MONGODB_URI`
+
+- RPC / Network
+  - `ETHEREUM_RPC_URL`
+
+- ERC‑3643 / OnchainID / T‑REX
+  - `IDENTITY_FACTORY_ADDRESS`
+  - `IDENTITY_IMPLEMENTATION_AUTHORITY`
+  - `IDENTITY_REGISTRY`
+  - `TOKEN_ADDRESS`                         # T‑REX token address
+  - `TOKEN_AGENT_PRIVATE_KEY`               # agent that can add keys/claims
+  - `CLAIM_ISSUER_CONTRACT`                 # trusted issuer address
+  - `CLAIM_ISSUER_SIGNING_KEY`              # issuer private key for signatures
+  - `KYC_CLAIM_TOPIC`                       # numeric topic (as string)
+
+- Self Protocol (UI integration)
+  - `NEXT_PUBLIC_SELF_APP_NAME`
+  - `NEXT_PUBLIC_SELF_SCOPE`
+  - `NEXT_PUBLIC_SELF_ENDPOINT`
+
+- Optional
+  - `ALPACA_*` keys if calling Alpaca directly
+
+## 🚀 Run Locally
 ```bash
 npm install
-```
-
-3. Set up environment variables:
-```bash
-cp .env.example .env.local
-```
-
-4. Configure your `.env.local` with:
-   - Alpaca API credentials
-   - Blockchain RPC URL
-   - Contract addresses (after deployment)
-
-5. Deploy smart contracts:
-```bash
-npx hardhat run scripts/deploy.js --network sepolia
-```
-
-6. Start the development server:
-```bash
 npm run dev
+# http://localhost:3000
 ```
 
-Visit [http://localhost:3000](http://localhost:3000)
+## 🧭 PoC Demo Flow
 
-For detailed setup instructions, see [ENV_SETUP.md](ENV_SETUP.md).
+1. Connect wallet on the homepage.
+2. Sign up for creating an account under our platform and Alpaca for brokerage usage, after registering successfully and then create an identity with `createIdentityForUser` and add KYC claim with `addKYCClaimToIdentity` into user identity for future verification.
+3. Open `Self` page (`/self`), scan QR with Self app and complete verification, this process will add another claim by self human proof verification on their APP.
+4. Tokenize/mint tokens with `mintTokensToUser` (requires verified identity).
 
-## 📚 Documentation
 
-- **[Setup Guide](ENV_SETUP.md)**: Complete environment setup
-- **[Smart Contracts](contracts/README.md)**: Contract documentation and deployment
-- **[API Documentation](#)**: API endpoints reference
+## 🧩 Core Library vs. Actions
 
-## 🔑 Key Concepts
+- Core contract logic lives in `src/lib/erc3643-client.ts` (OnchainID/T‑REX):
+  - `createIdentityForUser(address)`
+  - `registerUserToRegistry(address, identity, country)`
+  - `updateIdentityInRegistry(address, newIdentity, country?)`
+  - `deleteIdentityFromRegistry(address)`
+  - `addKYCClaimToIdentity(userAddress, identityAddress, claimData?)`
+  - `verifyUser(address)`
+  - `diagnoseVerification(address)`
+  - `mintTokensToUser(address, amount)`
+  - `getTokenBalance(address)`
+  - `checkConfiguration()`
 
-### Collateral Factor
-The maximum percentage of collateral value that can be borrowed. Example: 75% means you can borrow up to $75 for every $100 of collateral.
+- Actions in `src/app/actions/*` are thin server wrappers for frontend use and persistence. They should delegate to `erc3643-client.ts` for all blockchain logic, then write results to Mongo when needed.
 
-### Health Factor
-Ratio of collateral value to borrowed value. Must stay above 1.0 to avoid liquidation:
-```
-Health Factor = (Collateral Value × Liquidation Threshold) / Borrowed Value
-```
+### Why this separation
+- `erc3643-client.ts` is framework‑agnostic, testable, and owns the ERC‑3643 invariants and sequencing (registry first, then claims, etc.).
+- `src/app/actions` handles Next.js concerns (request context, auth, input sanitation) and database side‑effects.
 
-### Interest Rate Model
-Uses a kinked model similar to Compound:
-- **Below 80% utilization**: Gradual rate increase
-- **Above 80% utilization**: Steep rate increase
+<!-- ## 🔌 API Routes (Next.js)
+- `prices/route.ts`: consolidated price feed endpoint
+- `loan/apply/route.ts`: submit loan applications
+- `admin/approve-kyc/route.ts`: admin approve KYC
+- `admin/process-loan/route.ts`: admin loan processing -->
 
-### Liquidation
-When health factor drops below 1.0, positions can be liquidated:
-- Liquidator repays debt
-- Receives collateral + 10% bonus
-- Maximum 50% of debt can be liquidated at once
+## 🗄️ Data Model (Mongo Snapshots)
+- Collection `users` (`src/lib/db/schemas.ts`):
+  - `walletAddress`, `kycStatus`, `kycData`
+  - `erc3643`: `identityAddress`, `claims[]`, `isRegistered`, `country`
+  - `alpacaAccount` (optional)
+- Tokenization history recorded on mint actions.
 
-## 🌟 Supported Assets
+<!-- ## 🧱 Smart Contracts and Scripts
+- `contracts/SPYPriceOracle.sol`, `PriceOracleManager.sol`, `Comet.sol`, `MockUSDC.sol` (testing)
+- `scripts/setup-chainlink.js`: set up mock price feeds
+- `scripts/deploy-comet.js`: Comet/Compound deployment helper (PoC) -->
 
-| Asset | Symbol | Type | Collateral Factor | Liquidation Threshold |
-|-------|--------|------|-------------------|-----------------------|
-| Apple Inc. | TAAPL | Stock | 75% | 85% |
-| Alphabet Inc. | TGOOGL | Stock | 75% | 85% |
-| Tesla Inc. | TTSLA | Stock | 65% | 80% |
-| Microsoft Corp. | TMSFT | Stock | 75% | 85% |
-| US Gov Bonds | TUSG | Bond | 90% | 95% |
+## 📦 ERC‑3643 Client Configuration
+These env vars are required by `src/lib/erc3643-client.ts`:
+- `IDENTITY_FACTORY_ADDRESS`
+- `IDENTITY_IMPLEMENTATION_AUTHORITY`
+- `IDENTITY_REGISTRY`
+- `TOKEN_ADDRESS`
+- `TOKEN_AGENT_PRIVATE_KEY`
+- `CLAIM_ISSUER_CONTRACT`
+- `CLAIM_ISSUER_SIGNING_KEY`
+- `KYC_CLAIM_TOPIC`
+- `ETHEREUM_RPC_URL`
 
-## 📊 Interest Rates
+Notes:
+- `KYC_CLAIM_TOPIC` must exist in ClaimTopicsRegistry; `CLAIM_ISSUER_CONTRACT` must be in TrustedIssuersRegistry used by the token’s `IdentityRegistry`.
+- Identity should be registered in the registry before minting or verification checks will fail.
 
-Current rate parameters:
-- **Base Rate**: 2%
-- **Multiplier**: 10%
-- **Jump Multiplier**: 300%
-- **Optimal Utilization**: 80%
-
-## 🔐 Security
-
-- Smart contracts built with OpenZeppelin
-- Reentrancy protection on all critical functions
-- Access control for admin operations
-- Regular security audits recommended
-
-## 🧪 Testing
-
-Run the test suite:
-```bash
-npm test
-```
-
-Run smart contract tests:
-```bash
-npx hardhat test
-```
-
-## 🛣️ Roadmap
-
-- [x] Basic lending and borrowing
-- [x] Interest rate calculations
-- [x] Health factor monitoring
-- [x] Real-time price feeds
-- [ ] Liquidation bot
-- [ ] Mobile responsive design
-- [ ] Additional asset support
-- [ ] Governance token
-- [ ] Cross-chain support
-- [ ] Advanced analytics dashboard
-
-## 🤝 Contributing
-
-Contributions are welcome! Please read our contributing guidelines before submitting PRs.
-
-## 📝 License
-
-MIT License - see LICENSE file for details
+## 🔐 Notes
+- Identity registration must happen before claims are validated by T‑REX token/compliance.
+- `KYC_CLAIM_TOPIC` and `CLAIM_ISSUER_CONTRACT` must match the registries used by the token.
+- Use test keys/contracts only in this PoC.
 
 ## ⚠️ Disclaimer
+This is a PoC for demonstration only. Do not use in production. Keys, contracts, and registries are for testing.
 
-This is an MVP for demonstration purposes. Not audited for production use. Use at your own risk. Always conduct thorough testing and audits before deploying to mainnet.
-
-## 🔗 Links
-
-- [Alpaca Markets](https://alpaca.markets/)
-- [Chainlink](https://chain.link/)
-- [Compound Protocol](https://compound.finance/)
-- [OpenZeppelin](https://openzeppelin.com/)
-
-## 📧 Support
-
-For questions and support:
-- Open an issue on GitHub
-- Check documentation in `/contracts/README.md` and `ENV_SETUP.md`
