@@ -26,6 +26,7 @@ interface UserInfo {
         identityAddress?: string;
         identityCreatedAt?: Date;
         claims: Array<{
+            claimName: string;
             claimId: string;
             topic: string;
             issuer: string;
@@ -129,38 +130,41 @@ export const Web3Provider = ({ children }: Web3ProviderProps) => {
     // Load session from localStorage on mount and reconnect wallet
     useEffect(() => {
         const initializeSession = async () => {
-            const storedAddress = localStorage.getItem('walletAddress');
-            if (storedAddress) {
-                setAddress(storedAddress);
-                setIsAuthenticated(true);
-                
-                // Reconnect wallet to get provider and signer
-                if (typeof window.ethereum !== 'undefined') {
-                    try {
-                        const web3Provider = new ethers.BrowserProvider(window.ethereum);
-                        setProvider(web3Provider);
-                        
-                        // Try to get signer without requesting account access (silent)
-                        const accounts = await web3Provider.send('eth_accounts', []); // Use eth_accounts instead of eth_requestAccounts
-                        
-                        if (accounts.length > 0 && accounts[0].toLowerCase() === storedAddress.toLowerCase()) {
-                            const signerInstance = await web3Provider.getSigner();
-                            setSigner(signerInstance);
-                            console.log('Wallet reconnected successfully');
-                        } else {
-                            console.log('Wallet not connected or different address, will need manual reconnection');
-                        }
-                    } catch (error) {
-                        console.log('Could not silently reconnect wallet:', error);
-                    }
-                }
-                
-                // Load user info
-                await fetchUserInfo(storedAddress);
-            }
-            
-            // Mark as initialized after checking localStorage
+            // Always mark as initialized ASAP so UI is interactive even if background checks run
+            // This avoids blocking the Sign In button on refresh
             setIsInitialized(true);
+
+            const storedAddress = localStorage.getItem('walletAddress');
+
+            // Set stored address for UI, but do NOT mark authenticated until we confirm wallet account matches
+            setAddress(storedAddress);
+
+            // Reconnect wallet to get provider and signer (non-blocking best-effort)
+            if (typeof window.ethereum !== 'undefined') {
+                try {
+                    const web3Provider = new ethers.BrowserProvider(window.ethereum);
+                    setProvider(web3Provider);
+                    // Try to get signer without requesting account access (silent)
+                    const accounts = await web3Provider.send('eth_accounts', []);
+                    if (accounts.length > 0 && accounts[0].toLowerCase() === storedAddress.toLowerCase()) {
+                        const signerInstance = await web3Provider.getSigner();
+                        setSigner(signerInstance);
+                        setIsAuthenticated(true);
+                        console.log('Wallet reconnected successfully');
+                    } else {
+                        // Different account or not connected; remain unauthenticated so user can click Sign In
+                        setIsAuthenticated(false);
+                        console.log('Wallet not connected or different address, will need manual reconnection');
+                    }
+                } catch (error) {
+                    console.log('Could not silently reconnect wallet:', error);
+                }
+            }
+
+            // Load user info (fire-and-forget so it doesn't block initialization)
+            fetchUserInfo(storedAddress).catch((err) => {
+                console.warn('Background fetchUserInfo failed:', err);
+            });
         };
         
         initializeSession();

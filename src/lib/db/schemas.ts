@@ -52,6 +52,7 @@ export interface UserSchema {
     identityAddress?: string;           // OnchainID Identity contract address
     identityCreatedAt?: Date;          // Identity creation time
     claims: Array<{
+      claimName: string;
       claimId: string;
       topic: string;                    // Example: "KYC_VERIFIED"
       issuer: string;                   // ClaimIssuer address

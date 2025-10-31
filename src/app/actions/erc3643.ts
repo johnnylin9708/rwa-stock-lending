@@ -267,6 +267,7 @@ export async function createIdentity(walletAddress: string, recreate: boolean = 
                 
                 // Claim info
                 'erc3643.claims': [{
+                    claimName: 'Alpaca_KYC_Verified',
                     claimId: ethers.id('KYC_VERIFIED'),
                     topic: claimData.topic,
                     issuer: claimData.issuer,
@@ -308,5 +309,59 @@ export async function createIdentity(walletAddress: string, recreate: boolean = 
             country: country
         },
         message: "Identity created and auto-verified successfully"
+    }
+}
+
+export async function addSelfVerifiedClaim(walletAddress: string) {
+    try {
+        const db = await getDatabase();
+        const usersCollection = db.collection<UserSchema>('users');
+        
+        const user = await usersCollection.findOne({
+            walletAddress
+        });
+        
+        if (!user) {
+            throw new Error("User not found");
+        }
+
+        const data = await getIdentity(walletAddress || "");
+
+        const claimData = await addKYCClaimToIdentity(
+            walletAddress || "",
+            data?.identityAddress || "",
+            `Self Verified:${new Date().toISOString()}`
+        );
+
+        const newClaim = {
+            claimName: 'Self_Verified',
+            claimId: ethers.id('SELF_VERIFIED'),
+            topic: claimData.topic,
+            issuer: claimData.issuer,
+            signature: claimData.signature,
+            data: claimData.data,
+            issuedAt: new Date(),
+            isValid: true
+        };
+
+        await usersCollection.updateOne(
+            { walletAddress },
+            {
+                $setOnInsert: {
+                    createdAt: new Date()
+                },
+                $push: {
+                    'erc3643.claims': newClaim
+                },
+                $set: {
+                    updatedAt: new Date()
+                }
+            },
+            { upsert: false }
+        );
+        return true;
+    }catch (error: any) {
+        console.error('Failed to add self verified claim:', error);
+        return false;
     }
 }

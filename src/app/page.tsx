@@ -15,6 +15,7 @@ import {
 import { getAlpacaAccountDetails } from "./actions/alpaca";
 import { getTokenizationHistory } from "./actions/tokenization";
 import { createIdentity, getTokenizedStockBalance, mintTStockToUser } from "./actions/erc3643";
+import { useRouter } from "next/navigation";
 
 // Define a type for the portfolio position (from Alpaca)
 interface Position {
@@ -58,6 +59,7 @@ const tokenizedAssets = [
 
 export default function HomePage() {
     const { address, signer, isAuthenticated, isInitialized: web3Initialized, user } = useWeb3();
+    const router = useRouter();
     const [portfolio, setPortfolio] = useState<Position[]>([]);
     const [accountDetails, setAccountDetails] = useState<any>(null);
     const [tokenizedPositions, setTokenizedPositions] = useState<TokenizedPosition[]>([]);
@@ -399,15 +401,6 @@ export default function HomePage() {
                                     >
                                         {isCreatingIdentity ? 'Verifying...' : 'Complete Verification'}
                                     </Button>
-                                    <Button
-                                        onClick={() => handleCreateIdentity(true)}
-                                        disabled={isCreatingIdentity}
-                                        className="px-4 py-2 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-red-300 transition-colors"
-                                        title="Delete the old identity and create a new one with correct configuration"
-                                    >
-                                        {isCreatingIdentity ? 'Recreating...' : 'Recreate Identity'}
-                                    </Button>
-                                    
                                 </div>
                                 <p className="text-xs text-gray-500 mt-2">
                                     💡 If verification fails, try "Recreate Identity" to start fresh with the correct configuration.
@@ -417,7 +410,24 @@ export default function HomePage() {
                     </div>
                 )}
 
+                <div className="flex flex-row gap-2">
+                    <Button
+                        onClick={() => handleCreateIdentity(true)}
+                        disabled={isCreatingIdentity}
+                        className="px-4 py-2 my-3 text-xs bg-red-600 text-white rounded hover:bg-red-700 disabled:bg-red-300 transition-colors"
+                        title="Delete the old identity and create a new one with correct configuration"
+                    >
+                        {isCreatingIdentity ? 'Recreating...' : 'Recreate Identity'}
+                    </Button>
 
+                    <Button
+                        onClick={() => router.push('/self')}
+                        className="px-4 py-2 my-3 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-red-300 transition-colors"
+                        title="Delete the old identity and create a new one with correct configuration"
+                    >
+                        {'Verify Identity with Self App'}
+                    </Button>
+                </div>
                 
                 {/* Identity Verified */}
                 {user && user.erc3643?.identityAddress && user.erc3643?.isRegistered && (
@@ -566,7 +576,7 @@ export default function HomePage() {
                                                                         </svg>
                                                                     )}
                                                                     <span className="text-xs font-medium text-gray-900">
-                                                                        {claim.topic === process.env.KYC_CLAIM_TOPIC || claim.topic.includes('KYC') ? 'KYC_VERIFIED' : 'Custom Claim'}
+                                                                        {claim.claimName}
                                                                     </span>
                                                                 </div>
                                                                 <p className="text-xs text-gray-500 truncate">
@@ -661,6 +671,12 @@ export default function HomePage() {
                             </button>
                         </div>
                         {portfolio.length > 0 && (
+                            <>
+                            <div>
+                                <p className="text-xs text-gray-500">Last Equity</p>
+                                <p className="text-lg font-semibold text-gray-900">{accountDetails.last_equity}</p>
+                            </div>
+                            <br />
                             <div className="grid grid-cols-3 gap-4">
                                 <div>
                                     <p className="text-xs text-gray-500">Total Positions</p>
@@ -684,6 +700,7 @@ export default function HomePage() {
                                     </p>
                                 </div>
                             </div>
+                            </>
                         )}
                     </div>
                     <div className="overflow-x-auto">
@@ -721,6 +738,8 @@ export default function HomePage() {
                                     portfolio.map((pos) => {
                                         const plPercentage = parseFloat(pos.unrealized_plpc || '0') * 100;
                                         const isProfit = parseFloat(pos.unrealized_pl) >= 0;
+
+                                        console.log(pos);
                                         
                                         return (
                                             <tr key={pos.symbol} className="hover:bg-gray-50 transition-colors">
@@ -755,14 +774,14 @@ export default function HomePage() {
                                                     {plPercentage.toFixed(2)}%
                                                 </td>
                                                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
-                                                    <button
+                                                    {pos.exchange !== "CRYPTO" && <button
                                                         type="button"
                                                         onClick={() => handleTokenizeClick(pos)}
                                                         className="px-3 py-1.5 text-xs bg-gray-900 text-white rounded hover:bg-gray-800 transition-colors"
                                                         disabled={!address}
                                                     >
                                                         Tokenize
-                                                    </button>
+                                                    </button>}
                                                 </td>
                                             </tr>
                                         );
