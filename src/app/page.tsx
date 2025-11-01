@@ -48,11 +48,12 @@ interface TokenizedPosition {
 }
 
 // Tokenized Assets Configuration
+// 注意：合約地址是公開資訊，暴露在客戶端是完全安全的
 const tokenizedAssets = [
     {
         symbol: "TSPY",
         originalSymbol: "SPY",  // Original stock symbol
-        tokenAddress: "0xBEae6Fa62362aB593B498692FD09002a9eEd52dc",
+        tokenAddress: process.env.NEXT_PUBLIC_TSPY_ADDRESS || "0xBEae6Fa62362aB593B498692FD09002a9eEd52dc",
         tokenStandard: "ERC-3643",
     }
 ];

@@ -21,7 +21,7 @@ export default function SelfPage() {
   const [selfApp, setSelfApp] = useState<SelfApp | null>(null);
   const [universalLink, setUniversalLink] = useState("");
   // Use useMemo to cache the array to avoid creating a new array on each render
-  const excludedCountries = useMemo(() => [countries.UNITED_STATES], []);
+  const excludedCountries = useMemo(() => [countries.RUSSIA], []);
 
   // Use useEffect to ensure code only executes on the client side
   useEffect(() => {
@@ -43,7 +43,7 @@ export default function SelfPage() {
           // ofac: true,
           excludedCountries: excludedCountries,
           // what you want users to reveal
-          // name: false,
+          name: true,
           // issuing_state: true,
           // nationality: true,
           // date_of_birth: true,

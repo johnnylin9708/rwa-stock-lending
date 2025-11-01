@@ -610,7 +610,7 @@ export async function mintTokensToUser(
 
         const token = new ethers.Contract(
             TOKEN_ADDRESS,
-            [
+            [   
                 'function mint(address _to, uint256 _amount) external',
                 'function balanceOf(address _account) external view returns (uint256)'
             ],
