@@ -177,3 +177,13 @@ Notes:
 ## ⚠️ Disclaimer
 This is a PoC for demonstration only. Do not use in production. Keys, contracts, and registries are for testing.
 
+---
+
+## 🔗 Additional Resources
+
+### Contracts & SDKs
+- **[Self SDK](https://github.com/johnnylin9708/workshop)** - Workshop repository for Self Protocol SDK integration. Demonstrates how to implement QR code generation, universal links, and claim verification flows using the Self mobile app for identity verification.
+
+- **[ERC-3643](https://github.com/RonShih/Tokenized-Stock)** - Reference implementation for tokenized stock contracts using the ERC-3643 (T-REX) standard. Includes OnchainID identity management, IdentityRegistry, and compliance features for regulated token transfers.
+
+- **[Compound](https://github.com/herochen11/comet_rwa_hackathon/)** - Compound Comet (Compound III) integration for RWA (Real World Assets) lending. Shows how to configure Comet contracts to accept tokenized assets as collateral and implement lending/borrowing functionality.
